@@ -5,13 +5,13 @@ A TUI file manager written in rust
 
 fm is a TUI file manager that I decided to write and see how far I could get. It's heavily inspried by [lf](https://github.com/gokcehan/lf) so it should feel pretty familiar if you've used it before.
 
-#Features
+# Features
 - Colors? (Who doesn't like colors)
 - Moving around the filesystem
 
 As you can see it's not very feature rich yet but there are plenty of features being planned.
 
-#Near Future
+# Near Future
 - Basic deleting, moving, copying, pasting 
 - Preview contents of a directory or file
 - Open a file in preferred text editor
@@ -19,7 +19,7 @@ As you can see it's not very feature rich yet but there are plenty of features b
 - More keybinds for navigation
 - And probably some other stuff (Custom Colors?)
 
-#Installing
+# Installing
 Clone the repository, open the file, and run
 
 `$ cargo build --release`

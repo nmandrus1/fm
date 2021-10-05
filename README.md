@@ -21,9 +21,13 @@ As you can see it's not very feature rich yet but there are plenty of features b
 
 #Installing
 Clone the repository, open the file, and run
-'''$ cargo build --release'''
+'''
+$ cargo build --release
+'''
 Then navigate to 
-'''$ fm/target/release/'''
+'''
+$ fm/target/release/
+'''
 There should be an executable there that you can move to your path
 
 Enjoy!

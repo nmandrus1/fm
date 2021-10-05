@@ -25,7 +25,7 @@ use tui::{
 
 pub fn gen_files<'a>(list_state: &ListState, working_dir: &WorkingDir) -> List<'a> {
     let list_block = Block::default()
-        .borders(Borders::RIGHT)
+        .borders(Borders::RIGHT | Borders::LEFT)
         .style(Style::default().fg(Color::White))
         .border_type(BorderType::Plain);
 

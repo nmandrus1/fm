@@ -1,3 +1,4 @@
+pub mod permissions;
 pub mod workingdir;
 pub mod file;
 pub mod filetype;

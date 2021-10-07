@@ -36,6 +36,10 @@ pub fn gen_file_preview_invalid<'a>() -> Paragraph<'a> {
     Paragraph::new(Span::styled("Invalid UTF-8", Style::default().fg(Color::Red)))
 }
 
+pub fn gen_dir_preview_invalid<'a>() -> Paragraph<'a> {
+    Paragraph::new(Span::styled("Empty Directory", Style::default().fg(Color::Red)))
+}
+
 pub fn gen_dir_preview<'a>(files: &'a [File]) -> List<'a> {
     let preview_list = list_from_files(&files);
     List::new(preview_list)
@@ -91,14 +95,14 @@ pub fn gen_cwd_widget<'a>(cwd: &PathBuf) -> Paragraph<'a> {
         .alignment(Alignment::Center)
         .block(
             Block::default()
-                .borders(Borders::BOTTOM)
+                .borders(Borders::ALL)
                 .style(Style::default().fg(Color::White))
                 .border_type(BorderType::Plain),            
     )
 }
 
 fn list_from_files(files: &[File]) -> Vec<ListItem<'_>> {
-    files
+  files
         .iter()
         .map(|f| {
             ListItem::new(
@@ -106,5 +110,5 @@ fn list_from_files(files: &[File]) -> Vec<ListItem<'_>> {
                 Style::default().fg(f.color()))
             )
         })
-        .collect::<Vec<_>>() 
+        .collect::<Vec<_>>()
 }

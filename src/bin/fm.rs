@@ -85,7 +85,7 @@ fn render_loop(
                 .margin(0)
                 .constraints(
                     [
-                        Constraint::Length(2),
+                        Constraint::Length(3),
                         Constraint::Min(3),
                         Constraint::Length(2),
                     ].as_ref()
@@ -128,8 +128,17 @@ fn render_loop(
                 }
                 FileType::Directory => {
                     let contents = WorkingDir::get_files(selected_file.path());
-                    let preview = helpers::gen_dir_preview(&contents);
-                    rect.render_widget(preview, middle_chunks[1])
+                    match contents.len() {
+                        0 => {
+                            let preview = helpers::gen_dir_preview_invalid();
+                            rect.render_widget(preview, middle_chunks[1]) 
+                        },
+                        _ => {
+                            let preview = helpers::gen_dir_preview(&contents);
+                            rect.render_widget(preview, middle_chunks[1]) 
+                        }
+                    }
+                    
                 }
                 _ => {}
             }
@@ -172,7 +181,8 @@ fn render_loop(
                 // Going forward
                 KeyCode::Char('l') => {
                     if let Some(selected) = file_list_state.selected() {
-                        if working_dir.files()[selected].ftype == FileType::Directory {
+                        if working_dir.files()[selected].ftype == FileType::Directory
+                        && WorkingDir::get_files(working_dir.files()[selected].path()).len() != 0 {
                             let new_folder = working_dir.files()[selected].name.to_owned();
                             working_dir.forward(new_folder);
                             // Reset selection to start at the top of the next directory

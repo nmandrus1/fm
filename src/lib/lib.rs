@@ -3,6 +3,7 @@ pub mod workingdir;
 pub mod file;
 pub mod filetype;
 pub mod helpers;
+pub mod previews;
 
 #[cfg(test)]
 mod tests {

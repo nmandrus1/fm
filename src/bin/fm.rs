@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 // std Imports
 use std::sync::mpsc;
 
@@ -8,7 +9,6 @@ use fm::helpers;
 // Crossterm Imports
 use crossterm::{
     execute, 
-    cursor::{Hide, Show},
     terminal::{
         EnterAlternateScreen,
         LeaveAlternateScreen,
@@ -32,9 +32,7 @@ use tui::{
         Direction, 
         Layout,
     },
-    widgets::{
-        ListState,
-    },
+    widgets::ListState,
 };
 
 enum Event<I>{
@@ -55,7 +53,7 @@ fn main() -> anyhow::Result<()> {
 
     // Create Alternate Screen
     let mut stdout = std::io::stdout();
-    execute!(stdout, Hide, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen)?;
 
     // Create a crossterm backend and create a terminal to draw to
     let backend = CrosstermBackend::new(stdout);
@@ -71,7 +69,8 @@ fn render_loop(
     rx: mpsc::Receiver<Event<KeyEvent>>
     ) -> anyhow::Result<()> 
 {
-    let mut working_dir = WorkingDir::new()?;
+    let mut working_dir = WorkingDir::new(None)?;
+    let mut preview_dir = working_dir.clone();
 
     terminal.hide_cursor()?;
 
@@ -99,16 +98,41 @@ fn render_loop(
             rect.render_widget(cwd, chunks[0]);
 
             // helper function in lib/helpers.rs
-            let extras = helpers::gen_extras("-rwxrwxrwx And other stuff will go here");
+            let extras = helpers::gen_extras(&file_list_state, &working_dir);
             rect.render_widget(extras, chunks[2]);
 
-            let list_chunks = Layout::default()
+            let middle_chunks = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
                 .split(chunks[1]);
 
             let list = helpers::gen_files(&file_list_state, &working_dir);
-            rect.render_stateful_widget(list, list_chunks[0], &mut file_list_state);
+            rect.render_stateful_widget(list, middle_chunks[0], &mut file_list_state);
+
+            let selected = file_list_state.selected().unwrap_or_else(|| 0);
+            let selected_file = &working_dir.files()[selected];
+
+            match selected_file.ftype {
+                FileType::File => {
+                    let contents = std::fs::read_to_string(selected_file.path());
+                    match contents {
+                        Ok(s) => { 
+                            let preview = helpers::gen_file_preview(&s);
+                            rect.render_widget(preview, middle_chunks[1]); 
+                        },
+                        Err(_) => {
+                            let preview = helpers::gen_file_preview_invalid();
+                            rect.render_widget(preview, middle_chunks[1]); 
+                        }
+                    }
+                }
+                FileType::Directory => {
+                    let contents = WorkingDir::get_files(selected_file.path());
+                    let preview = helpers::gen_dir_preview(&contents);
+                    rect.render_widget(preview, middle_chunks[1])
+                }
+                _ => {}
+            }
 
         })?;
 
@@ -118,7 +142,6 @@ fn render_loop(
                 KeyCode::Char('q') => {
                     // Call shutdown method
                     shutdown(terminal.backend_mut())?;
-                    terminal.show_cursor()?;
                     break;
                 },
                 KeyCode::Char('j') => {

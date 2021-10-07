@@ -1,12 +1,17 @@
-use std::{clone, path::PathBuf};
+use std::{convert::TryFrom, iter::FromIterator, path::PathBuf};
 
 use super::workingdir::WorkingDir;
+use super::file::File;
+use super::filetype::FileType;
 
+use anyhow::Result;
 use tui::{
-    text::Span,
-    layout::{
-        Alignment,
+    text::{
+        Span,
+        Spans, 
+        Text,
     },
+    layout::Alignment,
     widgets::{
         Paragraph,
         Block,
@@ -23,7 +28,20 @@ use tui::{
     }
 };
 
-pub fn gen_files<'a>(list_state: &ListState, working_dir: &WorkingDir) -> List<'a> {
+pub fn gen_file_preview<'a>(contents: &'a str) -> Paragraph<'a> {
+    Paragraph::new(Text::from(contents))
+}
+
+pub fn gen_file_preview_invalid<'a>() -> Paragraph<'a> {
+    Paragraph::new(Span::styled("Invalid UTF-8", Style::default().fg(Color::Red)))
+}
+
+pub fn gen_dir_preview<'a>(files: &'a [File]) -> List<'a> {
+    let preview_list = list_from_files(&files);
+    List::new(preview_list)
+}
+
+pub fn gen_files<'a>(list_state: &ListState, working_dir: &'a WorkingDir) -> List<'a> {
     let list_block = Block::default()
         .borders(Borders::RIGHT | Borders::LEFT)
         .style(Style::default().fg(Color::White))
@@ -33,19 +51,7 @@ pub fn gen_files<'a>(list_state: &ListState, working_dir: &WorkingDir) -> List<'
 
     let file_list = match working_dir.len() {
         0 => vec![ListItem::new(Span::raw("Empty Directory"))],
-        _ => {
-        working_dir
-            .files()
-            .iter()
-            .map(|f| {
-                let color = f.color();
-                ListItem::new(
-                    Span::styled(f.name.clone(),
-                    Style::default().fg(color))
-                )
-            })
-            .collect::<Vec<_>>() 
-        }
+        _ => list_from_files(working_dir.files())
     };
         
 
@@ -62,9 +68,14 @@ pub fn gen_files<'a>(list_state: &ListState, working_dir: &WorkingDir) -> List<'
     list
 }
 
-pub fn gen_extras<'a>(extras: &'a str) -> Paragraph<'a> {
-     Paragraph::new(extras)
-        .style(Style::default().fg(Color::White))
+pub fn gen_extras<'a>(list_state: &ListState, working_dir: &WorkingDir) -> Paragraph<'a> {
+    let perms = working_dir.files()[list_state.selected().unwrap_or_else(|| 0)].perms;
+    let mut color = Color::White;
+
+    if !perms.is_valid() { color = Color::Red }
+    
+    Paragraph::new(format!(" {}", perms.to_string()))
+        .style(Style::default().fg(color))
         .alignment(Alignment::Left)
         .block(
             Block::default()
@@ -84,4 +95,16 @@ pub fn gen_cwd_widget<'a>(cwd: &PathBuf) -> Paragraph<'a> {
                 .style(Style::default().fg(Color::White))
                 .border_type(BorderType::Plain),            
     )
+}
+
+fn list_from_files(files: &[File]) -> Vec<ListItem<'_>> {
+    files
+        .iter()
+        .map(|f| {
+            ListItem::new(
+                Span::styled(f.name.clone(),
+                Style::default().fg(f.color()))
+            )
+        })
+        .collect::<Vec<_>>() 
 }

@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 // std Imports
 use std::sync::mpsc;
 
@@ -24,6 +23,7 @@ use crossterm::{
     },
 };
 
+// Tui imports
 use tui::{
     Terminal, 
     backend::CrosstermBackend, 
@@ -32,9 +32,19 @@ use tui::{
         Direction, 
         Layout,
     },
-    widgets::ListState,
+    widgets::{
+        Block,
+        ListState,
+        BorderType,
+        Borders,
+    },
+    style::{
+        Style,
+        Color
+    },
 };
 
+// Handles wether input is recieved
 enum Event<I>{
     Input(I),
     Tick,
@@ -49,7 +59,6 @@ fn main() -> anyhow::Result<()> {
 
     // Creates the input handling thread
     handle_input(tx);
-
 
     // Create Alternate Screen
     let mut stdout = std::io::stdout();
@@ -70,7 +79,6 @@ fn render_loop(
     ) -> anyhow::Result<()> 
 {
     let mut working_dir = WorkingDir::new(None)?;
-    let mut preview_dir = working_dir.clone();
 
     terminal.hide_cursor()?;
 
@@ -153,6 +161,7 @@ fn render_loop(
                     shutdown(terminal.backend_mut())?;
                     break;
                 },
+                // Goes down the list and wraps up to the top
                 KeyCode::Char('j') => {
                     if let Some(selected) = file_list_state.selected() {
                         let num_files = working_dir.files().len();
@@ -163,6 +172,7 @@ fn render_loop(
                         }
                     }
                 },
+                // Goes up the list
                 KeyCode::Char('k') => {
                     if let Some(selected) = file_list_state.selected() {
                         if selected > 0 {
@@ -180,6 +190,7 @@ fn render_loop(
                 },
                 // Going forward
                 KeyCode::Char('l') => {
+                    // Checks to see if the directory is valid
                     if let Some(selected) = file_list_state.selected() {
                         if working_dir.files()[selected].ftype == FileType::Directory
                         && WorkingDir::get_files(working_dir.files()[selected].path()).len() != 0 {
@@ -190,6 +201,7 @@ fn render_loop(
                         }                    
                     }
                 }
+                // Keymap to jump to the last element
                 KeyCode::Char('G') => {
                     let num_files = working_dir.files().len();
                     file_list_state.select(Some(num_files - 1))

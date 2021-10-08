@@ -1,18 +1,16 @@
-use std::{convert::TryFrom, iter::FromIterator, path::PathBuf};
+use std::path::PathBuf;
 
 use super::workingdir::WorkingDir;
 use super::file::File;
-use super::filetype::FileType;
 
-use anyhow::Result;
 use tui::{
     text::{
         Span,
-        Spans, 
         Text,
     },
     layout::Alignment,
     widgets::{
+        Widget, 
         Paragraph,
         Block,
         Borders,
@@ -29,20 +27,23 @@ use tui::{
 };
 
 pub fn gen_file_preview<'a>(contents: &'a str) -> Paragraph<'a> {
-    Paragraph::new(Text::from(contents))
+    Paragraph::new(Text::from(contents)).block(prev_block())
 }
 
 pub fn gen_file_preview_invalid<'a>() -> Paragraph<'a> {
     Paragraph::new(Span::styled("Invalid UTF-8", Style::default().fg(Color::Red)))
+        .block(prev_block())
 }
 
 pub fn gen_dir_preview_invalid<'a>() -> Paragraph<'a> {
     Paragraph::new(Span::styled("Empty Directory", Style::default().fg(Color::Red)))
+        .block(prev_block())
 }
 
 pub fn gen_dir_preview<'a>(files: &'a [File]) -> List<'a> {
     let preview_list = list_from_files(&files);
     List::new(preview_list)
+        .block(prev_block())
 }
 
 pub fn gen_files<'a>(list_state: &ListState, working_dir: &'a WorkingDir) -> List<'a> {
@@ -99,6 +100,13 @@ pub fn gen_cwd_widget<'a>(cwd: &PathBuf) -> Paragraph<'a> {
                 .style(Style::default().fg(Color::White))
                 .border_type(BorderType::Plain),            
     )
+}
+
+fn prev_block() -> Block<'static> {
+Block::default()
+    .borders(Borders::RIGHT)
+    .style(Style::default().fg(Color::White))
+    .border_type(BorderType::Plain)
 }
 
 fn list_from_files(files: &[File]) -> Vec<ListItem<'_>> {

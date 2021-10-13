@@ -22,7 +22,7 @@ impl WorkingDir {
 
         };
 
-        let mut files = Self::get_files(&cwd);
+        let mut files = Self::get_files(&cwd).unwrap();
         files.sort_by(|f, o| f.cmp(o));
         let len = files.len();
         Ok(Self { cwd, files, len })
@@ -69,15 +69,19 @@ impl WorkingDir {
 
     /// Uses std::fs::read_dir() to read the contents of the directory and then uses 
     /// try_from to convert a DirEntry into a File struct
-    pub fn get_files(path: &PathBuf) -> Vec<File> {
-        std::fs::read_dir(path).unwrap()
-            .map(|d| File::from(d.unwrap()))
-            .collect()
+    pub fn get_files(path: &PathBuf) -> std::io::Result<Vec<File>> {
+        match std::fs::read_dir(path) {
+            Ok(iter) => { 
+                let files = iter.map(|d| File::from(d.unwrap())).collect();
+                Ok(files)
+            },
+            Err(e) => Err(e),
+        }
     }
 
     // Called after any update to WorkingDir
     fn update(&mut self) {
-        self.files = Self::get_files(&self.cwd);
+        self.files = Self::get_files(&self.cwd).unwrap();
         self.len = self.files.len();
     }
 }

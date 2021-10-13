@@ -32,16 +32,7 @@ use tui::{
         Direction, 
         Layout,
     },
-    widgets::{
-        Block,
-        ListState,
-        BorderType,
-        Borders,
-    },
-    style::{
-        Style,
-        Color
-    },
+    widgets::ListState,
 };
 
 // Handles wether input is recieved
@@ -136,16 +127,28 @@ fn render_loop(
                 }
                 FileType::Directory => {
                     let contents = WorkingDir::get_files(selected_file.path());
-                    match contents.len() {
-                        0 => {
-                            let preview = helpers::gen_dir_preview_invalid();
-                            rect.render_widget(preview, middle_chunks[1]) 
+                    match contents {
+                        Ok(c) => match c.len() {
+                            0 => {
+                                let preview = helpers::gen_dir_preview_invalid("Empty Directory");
+                                rect.render_widget(preview, middle_chunks[1]) 
+                            },
+                            _ => {
+                                let preview = helpers::gen_dir_preview(&c);
+                                rect.render_widget(preview, middle_chunks[1]) 
+                            }
                         },
-                        _ => {
-                            let preview = helpers::gen_dir_preview(&contents);
-                            rect.render_widget(preview, middle_chunks[1]) 
+
+                        Err(e) => match e {
+                            std::io::Error {..} => {
+                                let preview = helpers::gen_dir_preview_invalid("Permission Denied");
+                                rect.render_widget(preview, middle_chunks[1]) 
+                            },
+
+                            _ => panic!("Unhandled io Error")
                         }
                     }
+                    
                     
                 }
                 _ => {}
@@ -193,7 +196,7 @@ fn render_loop(
                     // Checks to see if the directory is valid
                     if let Some(selected) = file_list_state.selected() {
                         if working_dir.files()[selected].ftype == FileType::Directory
-                        && WorkingDir::get_files(working_dir.files()[selected].path()).len() != 0 {
+                        && WorkingDir::get_files(working_dir.files()[selected].path()).unwrap().len() != 0 {
                             let new_folder = working_dir.files()[selected].name.to_owned();
                             working_dir.forward(new_folder);
                             // Reset selection to start at the top of the next directory

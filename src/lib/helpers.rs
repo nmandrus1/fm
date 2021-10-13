@@ -35,8 +35,8 @@ pub fn gen_file_preview_invalid<'a>() -> Paragraph<'a> {
         .block(prev_block())
 }
 
-pub fn gen_dir_preview_invalid<'a>() -> Paragraph<'a> {
-    Paragraph::new(Span::styled("Empty Directory", Style::default().fg(Color::Red)))
+pub fn gen_dir_preview_invalid<'a>(msg: &'a str) -> Paragraph<'a> {
+    Paragraph::new(Span::styled(msg, Style::default().fg(Color::Red)))
         .block(prev_block())
 }
 

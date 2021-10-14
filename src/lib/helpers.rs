@@ -90,6 +90,18 @@ pub fn gen_extras<'a>(list_state: &ListState, working_dir: &WorkingDir) -> Parag
     )
 }
 
+pub fn gen_keypress<'a>(input: &'a str) -> Paragraph<'a> {
+    Paragraph::new(Span::from(input))
+        .style(Style::default().fg(Color::White))
+        .alignment(Alignment::Center)
+        .block(
+            Block::default()
+                .borders(Borders::TOP)
+                .style(Style::default().fg(Color::White))
+                .border_type(BorderType::Plain),
+    ) 
+}
+
 pub fn gen_cwd_widget<'a>(cwd: &PathBuf) -> Paragraph<'a> {
     Paragraph::new(Span::raw(cwd.display().to_string()))
         .style(Style::default().add_modifier(Modifier::BOLD).fg(Color::LightBlue))

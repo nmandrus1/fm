@@ -35,6 +35,11 @@ use tui::{
     widgets::ListState,
 };
 
+enum State {
+    Awake,
+    Asleep,
+}
+
 // Handles wether input is recieved
 enum Event<I>{
     Input(I),
@@ -47,9 +52,10 @@ fn main() -> anyhow::Result<()> {
 
     // Create channel for communicating across threads
     let (tx, rx) = mpsc::channel();
+    let (tx1, rx1) = mpsc::channel();
 
     // Creates the input handling thread
-    handle_input(tx);
+    handle_input(tx, rx1);
 
     // Create Alternate Screen
     let mut stdout = std::io::stdout();
@@ -59,17 +65,20 @@ fn main() -> anyhow::Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    render_loop(&mut terminal, rx)?;
+    render_loop(&mut terminal, rx, tx1)?;
 
     Ok(())
 }
 
 fn render_loop(
     terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>, 
-    rx: mpsc::Receiver<Event<KeyEvent>>
+    rx: mpsc::Receiver<Event<KeyEvent>>,
+    tx1: mpsc::Sender<State>,
     ) -> anyhow::Result<()> 
 {
     let mut working_dir = WorkingDir::new(None)?;
+
+    let mut input = String::with_capacity(15);
 
     terminal.hide_cursor()?;
 
@@ -97,8 +106,16 @@ fn render_loop(
             rect.render_widget(cwd, chunks[0]);
 
             // helper function in lib/helpers.rs
+            let extras_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(70), Constraint::Percentage(30)].as_ref())
+                .split(chunks[2]);
+
             let extras = helpers::gen_extras(&file_list_state, &working_dir);
-            rect.render_widget(extras, chunks[2]);
+            rect.render_widget(extras, extras_chunks[0]);
+
+            let keypress = helpers::gen_keypress(&input);
+            rect.render_widget(keypress, extras_chunks[1]);
 
             let middle_chunks = Layout::default()
                 .direction(Direction::Horizontal)
@@ -203,6 +220,32 @@ fn render_loop(
                             file_list_state.select(Some(0))
                         }                    
                     }
+                },
+                // NOTE Figure out a way to block input handling thread 
+                // so inputs from vim dont carry over to fm
+                KeyCode::Enter => {
+                    if let Some(selected) = file_list_state.selected() {
+                        if working_dir.files()[selected].ftype == FileType::File {
+                            tx1.send(State::Asleep)?;
+                            std::process::Command::new("nvim")
+                                .arg(working_dir.files()[selected].path())
+                                .spawn()
+                                .unwrap()
+                                .wait()
+                                .unwrap();
+                            execute!(terminal.backend_mut(), EnterAlternateScreen)?;
+                            terminal.clear()?;
+                            tx1.send(State::Awake)?;
+                        }
+                    }
+                }
+                KeyCode::Char('g') => {
+                    if &input == "g" {
+                        file_list_state.select(Some(0));
+                        input.clear()
+                    } else {
+                        input = "g".to_string();
+                    }
                 }
                 // Keymap to jump to the last element
                 KeyCode::Char('G') => {
@@ -211,7 +254,7 @@ fn render_loop(
                 }
                 _ => {}
             },
-            Event::Tick => {}
+            Event::Tick => { }
         }
     }
 
@@ -221,9 +264,10 @@ fn render_loop(
 
 // Input Handling Thread
 // Takes a transmitter and a tickrate and listens for input
-fn handle_input(tx: mpsc::Sender<Event<KeyEvent>>) {
+fn handle_input(tx: mpsc::Sender<Event<KeyEvent>>, rx: mpsc::Receiver<State>) {
     use std::thread;
     use std::time::{Duration, Instant};
+    // use std::sync::mpsc::RecvTimeoutError;
 
     let tick_rate = Duration::from_millis(200);
 

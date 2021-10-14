@@ -35,11 +35,6 @@ use tui::{
     widgets::ListState,
 };
 
-enum State {
-    Awake,
-    Asleep,
-}
-
 // Handles wether input is recieved
 enum Event<I>{
     Input(I),
@@ -73,7 +68,7 @@ fn main() -> anyhow::Result<()> {
 fn render_loop(
     terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>, 
     rx: mpsc::Receiver<Event<KeyEvent>>,
-    tx1: mpsc::Sender<State>,
+    tx1: mpsc::Sender<()>,
     ) -> anyhow::Result<()> 
 {
     let mut working_dir = WorkingDir::new(None)?;
@@ -226,7 +221,7 @@ fn render_loop(
                 KeyCode::Enter => {
                     if let Some(selected) = file_list_state.selected() {
                         if working_dir.files()[selected].ftype == FileType::File {
-                            tx1.send(State::Asleep)?;
+                            tx1.send(())?;
                             std::process::Command::new("nvim")
                                 .arg(working_dir.files()[selected].path())
                                 .spawn()
@@ -235,7 +230,7 @@ fn render_loop(
                                 .unwrap();
                             execute!(terminal.backend_mut(), EnterAlternateScreen)?;
                             terminal.clear()?;
-                            tx1.send(State::Awake)?;
+                            tx1.send(())?;
                         }
                     }
                 }
@@ -264,33 +259,46 @@ fn render_loop(
 
 // Input Handling Thread
 // Takes a transmitter and a tickrate and listens for input
-fn handle_input(tx: mpsc::Sender<Event<KeyEvent>>, rx: mpsc::Receiver<State>) {
+fn handle_input(tx: mpsc::Sender<Event<KeyEvent>>, rx: mpsc::Receiver<()>) {
     use std::thread;
     use std::time::{Duration, Instant};
-    // use std::sync::mpsc::RecvTimeoutError;
+    use std::sync::mpsc::RecvTimeoutError;
 
     let tick_rate = Duration::from_millis(200);
 
     thread::spawn(move || -> anyhow::Result<()> {
         let mut last_tick = Instant::now();
+        let mut running = true;
         loop {
-            // Time before we want to time out
-            let timeout = tick_rate
-                .checked_sub(last_tick.elapsed())
-                .unwrap_or_else(|| Duration::from_secs(0));
+            running = match rx.recv_timeout(Duration::from_millis(10)) {
+                Err(_) => true,
+                Ok(_) => false,
+            };
 
-            // If an event is available, send it to the rendering thread 
-            if poll(timeout)? {
-                if let CEvent::Key(key) = read()? {
-                    tx.send(Event::Input(key))?
+            if running {
+                // Time before we want to time out
+                let timeout = tick_rate
+                    .checked_sub(last_tick.elapsed())
+                    .unwrap_or_else(|| Duration::from_secs(0));
+
+                // If an event is available, send it to the rendering thread 
+                if poll(timeout)? {
+                    if let CEvent::Key(key) = read()? {
+                        tx.send(Event::Input(key))?
+                    }
                 }
-            }
 
-            // If a timeout has occured, let the rendering thread know
-            // it was just a normal tick, and nothing is changing
-            if last_tick.elapsed() >= tick_rate {
-                if let Ok(_) = tx.send(Event::Tick) {
-                    last_tick = Instant::now()
+                // If a timeout has occured, let the rendering thread know
+                // it was just a normal tick, and nothing is changing
+                if last_tick.elapsed() >= tick_rate {
+                    if let Ok(_) = tx.send(Event::Tick) {
+                        last_tick = Instant::now()
+                    }
+                } 
+            } else {
+                running = match rx.recv() {
+                    Ok(_)  => true,
+                    Err(_) => false,
                 }
             }
         }

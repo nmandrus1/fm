@@ -109,7 +109,7 @@ fn render_loop(
                 KeyCode::Char('l') => {
                     // Checks to see if the directory is valid
                     if app.selected_file().ftype == FileType::Directory
-                    && WorkingDir::get_files(app.selected_file().path()).unwrap().len() != 0 {
+                    && !WorkingDir::get_files(app.selected_file().path()).unwrap().is_empty() {
                         let new_folder = app.selected_file().path().to_owned();
                         app.wd.forward(new_folder);
                         // Reset selection to start at the top of the next directory
@@ -166,15 +166,9 @@ fn handle_input(tx: mpsc::Sender<Event<KeyEvent>>, rx: mpsc::Receiver<()>) {
     thread::spawn(move || -> anyhow::Result<()> {
         let mut last_tick = Instant::now();
 
-        // TODO Find a better way to pause the thread
-        let mut running = true;
         loop {
-            running = match rx.recv_timeout(Duration::from_millis(10)) {
-                Err(_) => true,
-                Ok(_) => false,
-            };
 
-            if running {
+            if rx.recv_timeout(Duration::from_millis(10)).is_err() {
                 // Time before we want to time out
                 let timeout = tick_rate
                     .checked_sub(last_tick.elapsed())
@@ -189,16 +183,12 @@ fn handle_input(tx: mpsc::Sender<Event<KeyEvent>>, rx: mpsc::Receiver<()>) {
 
                 // If a timeout has occured, let the rendering thread know
                 // it was just a normal tick, and nothing is changing
-                if last_tick.elapsed() >= tick_rate {
-                    if let Ok(_) = tx.send(Event::Tick) {
-                        last_tick = Instant::now()
-                    }
+                if last_tick.elapsed() >= tick_rate && tx.send(Event::Tick).is_ok() {
+                    last_tick = Instant::now()
                 } 
+
             } else {
-                running = match rx.recv() {
-                    Ok(_)  => true,
-                    Err(_) => false,
-                }
+                thread::sleep(tick_rate);
             }
         }
     });

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use super::app::App;
 use super::workingdir::WorkingDir;
@@ -37,23 +37,23 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     f.render_widget(gen_cwd_widget(app.wd.cwd()), chunks[0]);
 
-    let list = gen_files(&app.wd, &selected_file);
+    let list = gen_files(&app.wd, selected_file);
 
     f.render_stateful_widget(list, middle_chunks[0], &mut app.flist_state);
 
     match selected_file.ftype {
         FileType::Directory => {
-            let prev_files = WorkingDir::get_files(&app.selected_file().path())
+            let prev_files = WorkingDir::get_files(app.selected_file().path())
                 .expect("Occured trying to get preview files for a directory");
             f.render_widget(gen_dir_preview(&prev_files), middle_chunks[1])
         },
         FileType::File => { 
-            f.render_widget(gen_file_preview(&selected_file), middle_chunks[1])
+            f.render_widget(gen_file_preview(selected_file), middle_chunks[1])
         }
         _ => {}
     };
 
-    f.render_widget(gen_extras(&selected_file), chunks[2]);
+    f.render_widget(gen_extras(selected_file), chunks[2]);
 }
 
 fn gen_file_preview<'a>(file: &File) -> Paragraph<'a> {
@@ -68,13 +68,13 @@ fn gen_file_preview<'a>(file: &File) -> Paragraph<'a> {
     }
 }
 
-fn invalid_prev<'a>(msg: &'a str) -> Paragraph<'a> {
+fn invalid_prev(msg: &str) -> Paragraph {
     Paragraph::new(Span::styled(msg, Style::default().fg(Color::Red)))
         .block(prev_block())
 }
 
-fn gen_dir_preview<'a>(files: &'a [File]) -> List<'a> {
-    let preview_list = list_from_files(&files);
+fn gen_dir_preview(files: &[File]) -> List {
+    let preview_list = list_from_files(files);
     List::new(preview_list)
         .block(prev_block())
 }
@@ -116,7 +116,7 @@ fn gen_extras<'a>(file: &File) -> Paragraph<'a> {
     )
 }
 
-fn gen_keypress<'a>(input: &'a str) -> Paragraph<'a> {
+fn gen_keypress(input: &str) -> Paragraph {
     Paragraph::new(Span::from(input))
         .style(Style::default().fg(Color::White))
         .alignment(Alignment::Center)
@@ -128,7 +128,7 @@ fn gen_keypress<'a>(input: &'a str) -> Paragraph<'a> {
     ) 
 }
 
-fn gen_cwd_widget<'a>(cwd: &PathBuf) -> Paragraph<'a> {
+fn gen_cwd_widget<'a>(cwd: &Path) -> Paragraph<'a> {
     Paragraph::new(Span::raw(cwd.display().to_string()))
         .style(Style::default().add_modifier(Modifier::BOLD).fg(Color::LightBlue))
         .alignment(Alignment::Center)

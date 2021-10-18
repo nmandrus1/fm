@@ -32,7 +32,9 @@ impl File {
 
 impl From<std::fs::DirEntry> for File {
     fn from(entry: std::fs::DirEntry) -> File {
-        let name = String::from_utf8_lossy(entry.file_name().as_bytes().into()).to_string();
+        // Clippy suggestion
+        // let name = String::from_utf8_lossy(entry.file_name().as_bytes().into()).to_string();
+        let name = String::from_utf8_lossy(entry.file_name().as_bytes());
         let path = entry.path();
         let perms = match entry.metadata() {
             Ok(mdata) => Permissions::from(mdata.mode()),
@@ -76,7 +78,7 @@ impl Ord for File {
 
 impl PartialOrd for File {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(&other))
+        Some(self.cmp(other))
     }
 }
 

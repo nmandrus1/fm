@@ -68,3 +68,9 @@ impl App {
         self.flist_state.select(Some(0))
     }
 }
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
+}

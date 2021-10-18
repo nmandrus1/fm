@@ -1,6 +1,5 @@
-use std::convert::TryFrom;
-
 use std::path::PathBuf;
+use std::path::Path;
 
 use super::file::*;
 
@@ -23,7 +22,7 @@ impl WorkingDir {
         };
 
         let mut files = Self::get_files(&cwd).unwrap();
-        files.sort_by(|f, o| f.cmp(o));
+        files.sort();
         let len = files.len();
         Ok(Self { cwd, files, len })
     }
@@ -51,7 +50,7 @@ impl WorkingDir {
     /// Function to set the cwd field in WorkingDir
     /// This is used to keep track of where you are in the file system
     pub fn set_cwd(&mut self, new_cwd: &str) -> anyhow::Result<WorkingDir> {
-         Ok(WorkingDir::new(Some(new_cwd))?)
+         WorkingDir::new(Some(new_cwd))
     }
 
     /// Returns the current working directory
@@ -67,9 +66,13 @@ impl WorkingDir {
         self.len
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.files.is_empty()
+    }
+
     /// Uses std::fs::read_dir() to read the contents of the directory and then uses 
     /// try_from to convert a DirEntry into a File struct
-    pub fn get_files(path: &PathBuf) -> std::io::Result<Vec<File>> {
+    pub fn get_files(path: &Path) -> std::io::Result<Vec<File>> {
         match std::fs::read_dir(path) {
             Ok(iter) => { 
                 let files = iter.map(|d| File::from(d.unwrap())).collect();

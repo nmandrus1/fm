@@ -19,7 +19,7 @@ impl Permissions {
     } 
 
     pub fn is_valid(&self) -> bool {
-        &self.perms < &512
+        self.perms < 512
     }
 }
 

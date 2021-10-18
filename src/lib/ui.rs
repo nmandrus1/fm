@@ -52,7 +52,10 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             }
         },
         FileType::File => { 
-            f.render_widget(gen_file_preview(selected_file), middle_chunks[1])
+            match gen_file_preview(selected_file) {
+                Ok(file) => f.render_widget(file, middle_chunks[1]),
+                Err(s) => f.render_widget(invalid_prev(&s), middle_chunks[1]),
+            }
         }
         _ => {}
     };
@@ -60,14 +63,14 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_widget(gen_extras(selected_file), chunks[2]);
 }
 
-fn gen_file_preview<'a>(file: &File) -> Paragraph<'a> {
+fn gen_file_preview<'a>(file: &File) -> anyhow::Result<Paragraph<'a>, String> {
     use std::io::ErrorKind;
     match std::fs::read_to_string(&file.path()) {
-        Ok(s) => Paragraph::new(Text::from(s)).block(prev_block()),
+        Ok(s) => Ok(Paragraph::new(Text::from(s)).block(prev_block())),
         Err(e) => match e.kind() {
-            ErrorKind::Interrupted => invalid_prev("Read Interrupted"),
-            ErrorKind::InvalidData => invalid_prev("Invalid UTF-8"),
-            _ => invalid_prev("Unexpected Error"),
+            ErrorKind::Interrupted => Err("Read Interrupted".to_string()),
+            ErrorKind::InvalidData => Err("Invalid UTF-8".to_string()),
+            _ => Err(format!("{:?}", e)),
         }
     }
 }
@@ -82,7 +85,7 @@ fn gen_dir_preview(file: &File) -> anyhow::Result<List, String> {
         Ok(files) => Ok(List::new(list_from_files(&files)).block(prev_block())),
         Err(e) => match e.kind() {
             std::io::ErrorKind::PermissionDenied => Err("Permission Denied".to_string()),
-            _ => Err("Unexpected Error".to_string())
+            _ => Err(format!("{:?}", e)),
         }
     }
 }

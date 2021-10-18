@@ -2,7 +2,8 @@ pub mod permissions;
 pub mod workingdir;
 pub mod file;
 pub mod filetype;
-pub mod helpers;
+pub mod app;
+pub mod ui;
 
 #[cfg(test)]
 mod tests {

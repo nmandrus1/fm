@@ -3,35 +3,20 @@ use std::sync::mpsc;
 
 // Lib Imports
 use fm::{filetype::FileType, workingdir::WorkingDir};
-use fm::helpers;
+use fm::{app::App, ui};
 
 // Crossterm Imports
 use crossterm::{
     execute, 
-    terminal::{
-        EnterAlternateScreen,
-        LeaveAlternateScreen,
-        enable_raw_mode,
-        disable_raw_mode
-    },
-    event::{
-        read,
-        poll,
-        Event as CEvent,
-        KeyEvent,
-        KeyCode,
-    },
+    terminal::{ EnterAlternateScreen, LeaveAlternateScreen, enable_raw_mode, disable_raw_mode},
+    event::{read, poll, Event as CEvent, KeyEvent, KeyCode},
 };
 
 // Tui imports
 use tui::{
     Terminal, 
     backend::CrosstermBackend, 
-    layout::{
-        Constraint, 
-        Direction, 
-        Layout,
-    },
+    layout::{Constraint, Direction, Layout},
     widgets::ListState,
 };
 
@@ -42,6 +27,7 @@ enum Event<I>{
 }
 
 fn main() -> anyhow::Result<()> {
+    
     // Enable Raw Mode
     enable_raw_mode()?;
 
@@ -60,6 +46,13 @@ fn main() -> anyhow::Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    // Set panic behavior
+    let default_panic = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        disable_raw_mode().unwrap();
+        default_panic(info);
+    }));
+
     render_loop(&mut terminal, rx, tx1)?;
 
     Ok(())
@@ -71,102 +64,11 @@ fn render_loop(
     tx1: mpsc::Sender<()>,
     ) -> anyhow::Result<()> 
 {
-    let mut working_dir = WorkingDir::new(None)?;
-
-    let mut input = String::with_capacity(15);
-
     terminal.hide_cursor()?;
-
-    let mut file_list_state = ListState::default();
-    file_list_state.select(Some(0));
+    let mut app = App::new();
 
     loop {
-        terminal.draw(|rect| {
-            let size = rect.size();
-            let chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .margin(0)
-                .constraints(
-                    [
-                        Constraint::Length(3),
-                        Constraint::Min(3),
-                        Constraint::Length(2),
-                    ].as_ref()
-                )
-                .split(size);            
-
-        
-            // helper function in lib/helpers.rs
-            let cwd = helpers::gen_cwd_widget(working_dir.cwd());
-            rect.render_widget(cwd, chunks[0]);
-
-            // helper function in lib/helpers.rs
-            let extras_chunks = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(70), Constraint::Percentage(30)].as_ref())
-                .split(chunks[2]);
-
-            let extras = helpers::gen_extras(&file_list_state, &working_dir);
-            rect.render_widget(extras, extras_chunks[0]);
-
-            let keypress = helpers::gen_keypress(&input);
-            rect.render_widget(keypress, extras_chunks[1]);
-
-            let middle_chunks = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
-                .split(chunks[1]);
-
-            let list = helpers::gen_files(&file_list_state, &working_dir);
-            rect.render_stateful_widget(list, middle_chunks[0], &mut file_list_state);
-
-            let selected = file_list_state.selected().unwrap_or_else(|| 0);
-            let selected_file = &working_dir.files()[selected];
-
-            match selected_file.ftype {
-                FileType::File => {
-                    let contents = std::fs::read_to_string(selected_file.path());
-                    match contents {
-                        Ok(s) => { 
-                            let preview = helpers::gen_file_preview(&s);
-                            rect.render_widget(preview, middle_chunks[1]); 
-                        },
-                        Err(_) => {
-                            let preview = helpers::gen_file_preview_invalid();
-                            rect.render_widget(preview, middle_chunks[1]); 
-                        }
-                    }
-                }
-                FileType::Directory => {
-                    let contents = WorkingDir::get_files(selected_file.path());
-                    match contents {
-                        Ok(c) => match c.len() {
-                            0 => {
-                                let preview = helpers::gen_dir_preview_invalid("Empty Directory");
-                                rect.render_widget(preview, middle_chunks[1]) 
-                            },
-                            _ => {
-                                let preview = helpers::gen_dir_preview(&c);
-                                rect.render_widget(preview, middle_chunks[1]) 
-                            }
-                        },
-
-                        Err(e) => match e {
-                            std::io::Error {..} => {
-                                let preview = helpers::gen_dir_preview_invalid("Permission Denied");
-                                rect.render_widget(preview, middle_chunks[1]) 
-                            },
-
-                            _ => panic!("Unhandled io Error")
-                        }
-                    }
-                    
-                    
-                }
-                _ => {}
-            }
-
-        })?;
+        terminal.draw(|rect| ui::draw(rect, &mut app))?;
 
         // Handle input send from other thread
         match rx.recv()? {
@@ -178,52 +80,48 @@ fn render_loop(
                 },
                 // Goes down the list and wraps up to the top
                 KeyCode::Char('j') => {
-                    if let Some(selected) = file_list_state.selected() {
-                        let num_files = working_dir.files().len();
+                    if let Some(selected) = app.flist_state.selected() {
+                        let num_files = app.wd.files().len();
                         if selected >= num_files -1 {
-                            file_list_state.select(Some(0))
+                            app.flist_state.select(Some(0))
                         } else {
-                            file_list_state.select(Some(selected + 1))
+                            app.flist_state.select(Some(selected + 1))
                         }
                     }
                 },
                 // Goes up the list
                 KeyCode::Char('k') => {
-                    if let Some(selected) = file_list_state.selected() {
+                    if let Some(selected) = app.flist_state.selected() {
                         if selected > 0 {
-                            file_list_state.select(Some(selected - 1))
+                            app.flist_state.select(Some(selected - 1))
                         } else {
-                            file_list_state.select(Some(0))
+                            app.flist_state.select(Some(0))
                         }
                     } 
                 },
                 // Going back
                 KeyCode::Char('h') => {
-                    working_dir.back(1);
+                    app.wd.back(1);
                     // Reset selection to start at the top of the next directory 
-                    file_list_state.select(Some(0));
+                    app.new_list_state();
                 },
                 // Going forward
                 KeyCode::Char('l') => {
                     // Checks to see if the directory is valid
-                    if let Some(selected) = file_list_state.selected() {
-                        if working_dir.files()[selected].ftype == FileType::Directory
-                        && WorkingDir::get_files(working_dir.files()[selected].path()).unwrap().len() != 0 {
-                            let new_folder = working_dir.files()[selected].name.to_owned();
-                            working_dir.forward(new_folder);
-                            // Reset selection to start at the top of the next directory
-                            file_list_state.select(Some(0))
-                        }                    
-                    }
+                    if app.selected_file().ftype == FileType::Directory
+                    && WorkingDir::get_files(app.selected_file().path()).unwrap().len() != 0 {
+                        let new_folder = app.selected_file().path().to_owned();
+                        app.wd.forward(new_folder);
+                        // Reset selection to start at the top of the next directory
+                        app.new_list_state();
+                    }                    
                 },
-                // NOTE Figure out a way to block input handling thread 
-                // so inputs from vim dont carry over to fm
                 KeyCode::Enter => {
-                    if let Some(selected) = file_list_state.selected() {
-                        if working_dir.files()[selected].ftype == FileType::File {
+                    if let Some(selected) = app.flist_state.selected() {
+                        if app.wd.files()[selected].ftype == FileType::File {
                             tx1.send(())?;
                             std::process::Command::new("nvim")
-                                .arg(working_dir.files()[selected].path())
+                                .arg(app.wd.files()[selected].path())
                                 .spawn()
                                 .unwrap()
                                 .wait()
@@ -235,17 +133,17 @@ fn render_loop(
                     }
                 }
                 KeyCode::Char('g') => {
-                    if &input == "g" {
-                        file_list_state.select(Some(0));
-                        input.clear()
+                    if &app.key_press == "g" {
+                        app.flist_state.select(Some(0));
+                        app.key_press.clear()
                     } else {
-                        input = "g".to_string();
+                        app.key_press = "g".to_string();
                     }
                 }
                 // Keymap to jump to the last element
                 KeyCode::Char('G') => {
-                    let num_files = working_dir.files().len();
-                    file_list_state.select(Some(num_files - 1))
+                    let num_files = app.wd.files().len();
+                    app.flist_state.select(Some(num_files - 1))
                 }
                 _ => {}
             },
@@ -262,12 +160,13 @@ fn render_loop(
 fn handle_input(tx: mpsc::Sender<Event<KeyEvent>>, rx: mpsc::Receiver<()>) {
     use std::thread;
     use std::time::{Duration, Instant};
-    use std::sync::mpsc::RecvTimeoutError;
 
     let tick_rate = Duration::from_millis(200);
 
     thread::spawn(move || -> anyhow::Result<()> {
         let mut last_tick = Instant::now();
+
+        // TODO Find a better way to pause the thread
         let mut running = true;
         loop {
             running = match rx.recv_timeout(Duration::from_millis(10)) {

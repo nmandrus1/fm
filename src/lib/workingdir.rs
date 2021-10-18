@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use super::file::*;
 
 /// Struct containing information about the Current working directory
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WorkingDir {
     cwd: PathBuf,
     files: Vec<File>,
@@ -29,7 +29,7 @@ impl WorkingDir {
     }
 
     /// Moves the cwd to self.cwd + path
-    pub fn forward(&mut self, path: String) {
+    pub fn forward(&mut self, path: PathBuf) {
         if self.len > 0 {
             self.cwd.push(path);
             self.update();

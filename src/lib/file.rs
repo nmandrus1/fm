@@ -34,7 +34,7 @@ impl From<std::fs::DirEntry> for File {
     fn from(entry: std::fs::DirEntry) -> File {
         // Clippy suggestion
         // let name = String::from_utf8_lossy(entry.file_name().as_bytes().into()).to_string();
-        let name = String::from_utf8_lossy(entry.file_name().as_bytes());
+        let name = String::from_utf8(entry.file_name().as_bytes().to_vec()).unwrap();
         let path = entry.path();
         let perms = match entry.metadata() {
             Ok(mdata) => Permissions::from(mdata.mode()),

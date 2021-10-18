@@ -12,8 +12,11 @@ use tui::text::{Text, Span};
 use tui::style::{Style, Color, Modifier};
 use tui::widgets::{
     Block, BorderType, Borders, List, 
-    ListItem, ListState, Paragraph, 
+    ListItem, Paragraph, Widget,
 };
+
+// Wrapper struct over a widget
+// struct Preview<W: Widget>(W);
 
 pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     // Create Layout for entire window
@@ -43,9 +46,10 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     match selected_file.ftype {
         FileType::Directory => {
-            let prev_files = WorkingDir::get_files(app.selected_file().path())
-                .expect("Occured trying to get preview files for a directory");
-            f.render_widget(gen_dir_preview(&prev_files), middle_chunks[1])
+            match gen_dir_preview(selected_file) {
+                Ok(list) => f.render_widget(list, middle_chunks[1]),
+                Err(s) => f.render_widget(invalid_prev(&s), middle_chunks[1])
+            }
         },
         FileType::File => { 
             f.render_widget(gen_file_preview(selected_file), middle_chunks[1])
@@ -73,10 +77,14 @@ fn invalid_prev(msg: &str) -> Paragraph {
         .block(prev_block())
 }
 
-fn gen_dir_preview(files: &[File]) -> List {
-    let preview_list = list_from_files(files);
-    List::new(preview_list)
-        .block(prev_block())
+fn gen_dir_preview(file: &File) -> anyhow::Result<List, String> {
+    match WorkingDir::get_files(file.path()) {
+        Ok(files) => Ok(List::new(list_from_files(&files)).block(prev_block())),
+        Err(e) => match e.kind() {
+            std::io::ErrorKind::PermissionDenied => Err("Permission Denied".to_string()),
+            _ => Err("Unexpected Error".to_string())
+        }
+    }
 }
 
 fn gen_files<'a>(wd: &'a WorkingDir, selected_file: &File) -> List<'a> {
@@ -147,7 +155,7 @@ Block::default()
     .border_type(BorderType::Plain)
 }
 
-fn list_from_files(files: &[File]) -> Vec<ListItem<'_>> {
+fn list_from_files<'a>(files: &[File]) -> Vec<ListItem<'a>> {
   files
     .iter()
     .map(|f| {
@@ -158,5 +166,3 @@ fn list_from_files(files: &[File]) -> Vec<ListItem<'_>> {
     })
     .collect::<Vec<_>>()
 }
-
-

@@ -13,12 +13,7 @@ use crossterm::{
 };
 
 // Tui imports
-use tui::{
-    Terminal, 
-    backend::CrosstermBackend, 
-    layout::{Constraint, Direction, Layout},
-    widgets::ListState,
-};
+use tui::{Terminal, backend::CrosstermBackend};
 
 // Handles wether input is recieved
 enum Event<I>{

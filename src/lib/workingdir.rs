@@ -58,14 +58,18 @@ impl WorkingDir {
         &self.cwd
     }
 
+    /// Returns a reference to Self's files
     pub fn files(&self) -> &[File] {
         &self.files[..]
     }
      
+    /// Returns the length of the vector of files contained in Self
     pub fn len(&self) -> usize {
         self.len
     }
 
+    /// Returns a boolean that returns true if the length of 
+    /// Self's vector of files is 0
     pub fn is_empty(&self) -> bool {
         self.files.is_empty()
     }

@@ -6,18 +6,23 @@ pub struct Permissions {
 }
 
 impl Permissions {
+    /// Returns true if the user has executable perms
     pub fn is_user_exec(&self) -> bool {
         self.perms & 1 == 1
     }
 
+    /// Returns true if the user has write perms
     pub fn is_user_write(&self) -> bool {
         (self.perms >> 1) & 1 == 1
     } 
 
+    /// Returns true if the user has read perms
     pub fn is_user_read(&self) -> bool {
         (self.perms >> 2) & 1 == 1
     } 
 
+    /// Returns true if the permissions grabbed from 
+    /// The u32 value are valid permissions
     pub fn is_valid(&self) -> bool {
         self.perms < 512
     }

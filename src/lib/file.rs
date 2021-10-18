@@ -16,6 +16,7 @@ pub struct File {
 }
 
 impl File {
+    /// Gets a color based on the FileType of the File
     pub fn color(&self) -> Color {
         match self.ftype {
             FileType::Directory => Color::LightBlue,
@@ -25,6 +26,7 @@ impl File {
         }
     }
 
+    /// Returns a Refernce to the path of the current File
     pub fn path(&self) -> &PathBuf {
         &self.path
     }

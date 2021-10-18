@@ -162,7 +162,6 @@ fn handle_input(tx: mpsc::Sender<Event<KeyEvent>>, rx: mpsc::Receiver<()>) {
         let mut last_tick = Instant::now();
 
         loop {
-
             if rx.recv_timeout(Duration::from_millis(10)).is_err() {
                 // Time before we want to time out
                 let timeout = tick_rate
@@ -183,7 +182,7 @@ fn handle_input(tx: mpsc::Sender<Event<KeyEvent>>, rx: mpsc::Receiver<()>) {
                 } 
 
             } else {
-                thread::sleep(tick_rate);
+                // thread::sleep(tick_rate);
             }
         }
     });

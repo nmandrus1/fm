@@ -12,7 +12,7 @@ use tui::text::{Text, Span};
 use tui::style::{Style, Color, Modifier};
 use tui::widgets::{
     Block, BorderType, Borders, List, 
-    ListItem, Paragraph, Widget,
+    ListItem, Paragraph,
 };
 
 // Wrapper struct over a widget
@@ -36,12 +36,23 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
         .split(chunks[1]); 
 
+    let extra_chunks = Layout::default()
+        .direction(tui::layout::Direction::Horizontal)
+        .constraints(
+            [
+                 Constraint::Percentage(30),
+                 Constraint::Percentage(30),
+                 Constraint::Percentage(30),
+            ].as_ref()
+        )
+        .split(chunks[2]); 
+
+
     let selected_file = &app.selected_file().to_owned();
 
     f.render_widget(gen_cwd_widget(app.wd.cwd()), chunks[0]);
 
     let list = gen_files(&app.wd, selected_file);
-
     f.render_stateful_widget(list, middle_chunks[0], &mut app.flist_state);
 
     match selected_file.ftype {
@@ -60,7 +71,9 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         _ => {}
     };
 
-    f.render_widget(gen_extras(selected_file), chunks[2]);
+    f.render_widget(gen_extras(selected_file), extra_chunks[0]);
+    f.render_widget(gen_search(), extra_chunks[1]);
+    f.render_widget(gen_search(), extra_chunks[2]);
 }
 
 fn gen_file_preview<'a>(file: &File) -> anyhow::Result<Paragraph<'a>, String> {
@@ -88,6 +101,10 @@ fn gen_dir_preview(file: &File) -> anyhow::Result<List, String> {
             _ => Err(format!("{:?}", e)),
         }
     }
+}
+
+fn gen_search() -> Paragraph<'static> {
+    Paragraph::new(Span::raw("")).block(Block::default().borders(Borders::TOP))
 }
 
 fn gen_files<'a>(wd: &'a WorkingDir, selected_file: &File) -> List<'a> {

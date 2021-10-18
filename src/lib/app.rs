@@ -15,14 +15,12 @@ pub struct App {
     pub search_bar: String,
     pub key_press: String,
     pub wd: WorkingDir,
-    // pub prev: Paragraph<'a>,
-    // pub flist: List<'a>,
     pub flist_state: ListState,
-    // pub extras: Paragraph<'a>,
-    // pub cwd: Paragraph<'a>
+    pub msg: String,
 }
 
 impl App {
+    /// Creates a default new App
     pub fn new() -> Self {
         let input_mode = InputMode::Normal;
         let search_bar = String::with_capacity(15);
@@ -35,26 +33,22 @@ impl App {
             } 
         };
 
-        // let prev = Paragraph::new(Span::raw(""));
-        // let flist = List::new(vec![ListItem::new(Span::raw(""))]);
         let mut flist_state = ListState::default();
         flist_state.select(Some(0));
-        // let extras = Paragraph::new(Span::raw(""));
-        // let cwd = Paragraph::new(Span::raw(""));
+        let msg = String::with_capacity(15);
 
         Self {
             input_mode,
             search_bar,
             key_press,
             wd,
-            // prev,
-            // flist,
             flist_state,
-            // extras,
-            // cwd,
+            msg,
         }
     }
 
+    /// Returns a reference to the Struct of the 
+    /// Currently selected File
     pub fn selected_file(&self) -> &File {
         if let Some(selected) =  self.flist_state.selected() {
             &self.wd.files()[selected]
@@ -63,6 +57,10 @@ impl App {
         }
     }
 
+    /// ListState carries over data from the last 
+    /// List that was rendered so call this method 
+    /// Every time a new navigatable list of files
+    /// Needs to be rendered
     pub fn new_list_state(&mut self) {
         self.flist_state = ListState::default();
         self.flist_state.select(Some(0))

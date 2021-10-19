@@ -36,15 +36,13 @@ impl WorkingDir {
     }
 
     /// Goes back by num directories or until it reaches the root directory
-    pub fn back(&mut self, num: usize) {
-        let mut i = 0;
-        let mut can_go_further = true;
-        while can_go_further && i < num {
-            can_go_further = self.cwd.pop();
-            i += 1;
+    pub fn back(&mut self) -> bool {
+        if self.cwd.pop() {
+            self.update();
+            return true
+        } else {
+            return false
         }
-
-        self.update();
     }
 
     /// Function to set the cwd field in WorkingDir

@@ -17,6 +17,7 @@ pub struct App {
     pub wd: WorkingDir,
     pub flist_state: ListState,
     pub msg: String,
+    pub msg_alive: bool,
 }
 
 impl App {
@@ -44,6 +45,7 @@ impl App {
             wd,
             flist_state,
             msg,
+            msg_alive: true,
         }
     }
 

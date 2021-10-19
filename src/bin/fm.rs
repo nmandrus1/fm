@@ -96,9 +96,13 @@ fn render_loop(
                 },
                 // Going back
                 KeyCode::Char('h') => {
-                    app.wd.back(1);
+                    let res = app.wd.back();
+                    if !res {
+                        app.msg.push_str("Can't go further");
+                    } else {
                     // Reset selection to start at the top of the next directory 
                     app.new_list_state();
+                    }
                 },
                 // Going forward
                 KeyCode::Char('l') => {

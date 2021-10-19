@@ -73,7 +73,12 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     f.render_widget(gen_extras(selected_file), extra_chunks[0]);
     f.render_widget(gen_search(), extra_chunks[1]);
-    f.render_widget(gen_search(), extra_chunks[2]);
+
+    if app.msg_alive {
+        f.render_widget(gen_msg(&app.msg), extra_chunks[2]);
+    } else {
+        f.render_widget(gen_msg(""), extra_chunks[2]);
+    }
 }
 
 fn gen_file_preview<'a>(file: &File) -> anyhow::Result<Paragraph<'a>, String> {
@@ -86,6 +91,16 @@ fn gen_file_preview<'a>(file: &File) -> anyhow::Result<Paragraph<'a>, String> {
             _ => Err(format!("{:?}", e)),
         }
     }
+}
+
+fn gen_msg(msg: &str) -> Paragraph {
+    Paragraph::new(
+        Span::styled(msg, Style::default().fg(Color::Red))
+    ).block(Block::default().borders(Borders::TOP))
+}
+
+fn gen_search() -> Paragraph<'static> {
+    Paragraph::new(Span::raw("")).block(Block::default().borders(Borders::TOP))
 }
 
 fn invalid_prev(msg: &str) -> Paragraph {
@@ -101,10 +116,6 @@ fn gen_dir_preview(file: &File) -> anyhow::Result<List, String> {
             _ => Err(format!("{:?}", e)),
         }
     }
-}
-
-fn gen_search() -> Paragraph<'static> {
-    Paragraph::new(Span::raw("")).block(Block::default().borders(Borders::TOP))
 }
 
 fn gen_files<'a>(wd: &'a WorkingDir, selected_file: &File) -> List<'a> {

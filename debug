@@ -1,2 +1,0 @@
-File: File { name: "rust", ftype: Directory, perms: Permissions { perms: 493 }, path: "/home/nels/dev/rust" }
-State: ListState { offset: 11, selected: Some(0) }

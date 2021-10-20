@@ -1,13 +1,13 @@
 use std::path::Path;
 
-use super::app::App;
+use super::app::{App, InputMode};
 use super::workingdir::WorkingDir;
 use super::file::File;
 use super::filetype::FileType;
 
 use tui::Frame;
 use tui::backend::Backend;
-use tui::layout::{Constraint, Layout, Alignment};
+use tui::layout::{Constraint, Layout, Alignment, Rect};
 use tui::text::{Text, Span};
 use tui::style::{Style, Color, Modifier};
 use tui::widgets::{
@@ -15,45 +15,12 @@ use tui::widgets::{
     ListItem, Paragraph,
 };
 
-// Wrapper struct over a widget
-// struct Preview<W: Widget>(W);
-
 pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     // Create Layout for entire window
-    let chunks = Layout::default()
-        .direction(tui::layout::Direction::Vertical)
-        .margin(0)
-        .constraints(
-            [
-                Constraint::Length(3),
-                Constraint::Min(3),
-                Constraint::Length(2),
-            ].as_ref()
-        ).split(f.size());
-
-    let middle_chunks = Layout::default()
-        .direction(tui::layout::Direction::Horizontal)
-        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
-        .split(chunks[1]); 
-
-    let extra_chunks = Layout::default()
-        .direction(tui::layout::Direction::Horizontal)
-        .constraints(
-            [
-                 Constraint::Percentage(30),
-                 Constraint::Percentage(30),
-                 Constraint::Percentage(30),
-            ].as_ref()
-        )
-        .split(chunks[2]); 
-
+    let (chunks, middle_chunks, extra_chunks) = gen_chunks(f);
 
     let selected_file = &app.selected_file().to_owned();
-
     f.render_widget(gen_cwd_widget(app.wd.cwd()), chunks[0]);
-
-    let list = gen_files(&app.wd, selected_file);
-    f.render_stateful_widget(list, middle_chunks[0], &mut app.flist_state);
 
     match selected_file.ftype {
         FileType::Directory => {
@@ -72,7 +39,18 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     };
 
     f.render_widget(gen_extras(selected_file), extra_chunks[0]);
-    f.render_widget(gen_search(), extra_chunks[1]);
+
+    let list = gen_files(&app.wd, selected_file);
+    match app.input_mode {
+        InputMode::Normal => {
+            f.render_widget(gen_input("Normal Mode"), extra_chunks[1]);
+            f.render_stateful_widget(list, middle_chunks[0], &mut app.flist_state);
+        }, 
+        _ => {
+            f.render_widget(gen_input("Input Mode"), extra_chunks[1]);
+            f.render_widget(list, middle_chunks[0]);
+        },
+    };
 
     if app.msg_alive {
         f.render_widget(gen_msg(&app.msg), extra_chunks[2]);
@@ -99,8 +77,9 @@ fn gen_msg(msg: &str) -> Paragraph {
     ).block(Block::default().borders(Borders::TOP))
 }
 
-fn gen_search() -> Paragraph<'static> {
-    Paragraph::new(Span::raw("")).block(Block::default().borders(Borders::TOP))
+fn gen_input<'a>(input: &'a str) -> Paragraph<'a> {
+    Paragraph::new(input).alignment(Alignment::Center)
+        .block(Block::default().borders(Borders::TOP))
 }
 
 fn invalid_prev(msg: &str) -> Paragraph {
@@ -196,4 +175,35 @@ fn list_from_files<'a>(files: &[File]) -> Vec<ListItem<'a>> {
         )
     })
     .collect::<Vec<_>>()
+}
+
+fn gen_chunks<B: Backend>(f: &mut Frame<B>) -> (Vec<Rect>, Vec<Rect>, Vec<Rect>) {
+    let chunks = Layout::default()
+        .direction(tui::layout::Direction::Vertical)
+        .margin(0)
+        .constraints(
+            [
+                Constraint::Length(3),
+                Constraint::Min(3),
+                Constraint::Length(2),
+            ].as_ref()
+        ).split(f.size());
+
+    let middle_chunks = Layout::default()
+        .direction(tui::layout::Direction::Horizontal)
+        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
+        .split(chunks[1]); 
+
+    let extra_chunks = Layout::default()
+        .direction(tui::layout::Direction::Horizontal)
+        .constraints(
+            [
+                 Constraint::Percentage(20),
+                 Constraint::Percentage(60),
+                 Constraint::Percentage(20),
+            ].as_ref()
+        )
+        .split(chunks[2]);
+
+    (chunks, middle_chunks, extra_chunks)
 }

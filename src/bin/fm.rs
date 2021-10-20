@@ -3,7 +3,7 @@ use std::sync::mpsc;
 
 // Lib Imports
 use fm::{filetype::FileType, workingdir::WorkingDir};
-use fm::{app::App, ui};
+use fm::{app::{App, InputMode}, ui};
 
 // Crossterm Imports
 use crossterm::{
@@ -66,88 +66,111 @@ fn render_loop(
         terminal.draw(|rect| ui::draw(rect, &mut app))?;
 
         // Handle input send from other thread
-        match rx.recv()? {
-            Event::Input(event) => match event.code {
-                KeyCode::Char('q') => {
-                    // Call shutdown method
-                    shutdown(terminal.backend_mut())?;
-                    break;
-                },
-                // Goes down the list and wraps up to the top
-                KeyCode::Char('j') => {
-                    if let Some(selected) = app.flist_state.selected() {
-                        let num_files = app.wd.files().len();
-                        if selected >= num_files -1 {
-                            app.flist_state.select(Some(0))
-                        } else {
-                            app.flist_state.select(Some(selected + 1))
+        match app.input_mode {
+            InputMode::Normal => {
+                match rx.recv()? {
+                    Event::Input(event) => match event.code {
+                        KeyCode::Char('q') => {
+                            // Call shutdown method
+                            shutdown(terminal.backend_mut())?;
+                            break;
+                        },
+                        // Goes down the list and wraps up to the top
+                        KeyCode::Char('j') => {
+                            if let Some(selected) = app.flist_state.selected() {
+                                let num_files = app.wd.files().len();
+                                if selected >= num_files -1 {
+                                    app.flist_state.select(Some(0))
+                                } else {
+                                    app.flist_state.select(Some(selected + 1))
+                                }
+                            }
+                        },
+                        // Goes up the list
+                        KeyCode::Char('k') => {
+                            if let Some(selected) = app.flist_state.selected() {
+                                if selected > 0 {
+                                    app.flist_state.select(Some(selected - 1))
+                                } else {
+                                    app.flist_state.select(Some(0))
+                                }
+                            } 
+                        },
+                        // Going back
+                        KeyCode::Char('h') => {
+                            let res = app.wd.back();
+                            if !res {
+                                app.msg.push_str("Can't go further");
+                            } else {
+                            // Reset selection to start at the top of the next directory 
+                            app.new_list_state();
+                            }
+                        },
+                        // Going forward
+                        KeyCode::Char('l') => {
+                            // Checks to see if the directory is valid
+                            if app.selected_file().ftype == FileType::Directory
+                            && !WorkingDir::get_files(app.selected_file().path()).unwrap().is_empty() {
+                                let new_folder = app.selected_file().path().to_owned();
+                                app.wd.forward(new_folder);
+                                // Reset selection to start at the top of the next directory
+                                app.new_list_state();
+                            }                    
+                        },
+                        KeyCode::Enter => {
+                            if let Some(selected) = app.flist_state.selected() {
+                                if app.wd.files()[selected].ftype == FileType::File {
+                                    tx1.send(())?;
+                                    std::process::Command::new("nvim")
+                                        .arg(app.wd.files()[selected].path())
+                                        .spawn()
+                                        .unwrap()
+                                        .wait()
+                                        .unwrap();
+                                    execute!(terminal.backend_mut(), EnterAlternateScreen)?;
+                                    terminal.clear()?;
+                                    tx1.send(())?;
+                                }
+                            }
                         }
-                    }
-                },
-                // Goes up the list
-                KeyCode::Char('k') => {
-                    if let Some(selected) = app.flist_state.selected() {
-                        if selected > 0 {
-                            app.flist_state.select(Some(selected - 1))
-                        } else {
-                            app.flist_state.select(Some(0))
+                        KeyCode::Char('g') => {
+                            if &app.key_press == "g" {
+                                app.flist_state.select(Some(0));
+                                app.key_press.clear()
+                            } else {
+                                app.key_press = "g".to_string();
+                            }
                         }
-                    } 
-                },
-                // Going back
-                KeyCode::Char('h') => {
-                    let res = app.wd.back();
-                    if !res {
-                        app.msg.push_str("Can't go further");
-                    } else {
-                    // Reset selection to start at the top of the next directory 
-                    app.new_list_state();
-                    }
-                },
-                // Going forward
-                KeyCode::Char('l') => {
-                    // Checks to see if the directory is valid
-                    if app.selected_file().ftype == FileType::Directory
-                    && !WorkingDir::get_files(app.selected_file().path()).unwrap().is_empty() {
-                        let new_folder = app.selected_file().path().to_owned();
-                        app.wd.forward(new_folder);
-                        // Reset selection to start at the top of the next directory
-                        app.new_list_state();
-                    }                    
-                },
-                KeyCode::Enter => {
-                    if let Some(selected) = app.flist_state.selected() {
-                        if app.wd.files()[selected].ftype == FileType::File {
-                            tx1.send(())?;
-                            std::process::Command::new("nvim")
-                                .arg(app.wd.files()[selected].path())
-                                .spawn()
-                                .unwrap()
-                                .wait()
-                                .unwrap();
-                            execute!(terminal.backend_mut(), EnterAlternateScreen)?;
-                            terminal.clear()?;
-                            tx1.send(())?;
+                        // Keymap to jump to the last element
+                        KeyCode::Char('G') => {
+                            let num_files = app.wd.files().len();
+                            app.flist_state.select(Some(num_files - 1))
                         }
-                    }
-                }
-                KeyCode::Char('g') => {
-                    if &app.key_press == "g" {
-                        app.flist_state.select(Some(0));
-                        app.key_press.clear()
-                    } else {
-                        app.key_press = "g".to_string();
-                    }
-                }
-                // Keymap to jump to the last element
-                KeyCode::Char('G') => {
-                    let num_files = app.wd.files().len();
-                    app.flist_state.select(Some(num_files - 1))
-                }
-                _ => {}
+
+                        // KeyCode::Esc => { app.input_mode = InputMode::Normal },
+                        KeyCode::Char(':') => { app.input_mode = InputMode::Editing },
+                        _ => {}
+                    },
+                    Event::Tick => {}
+                } 
             },
-            Event::Tick => { }
+            InputMode::Editing => {
+                match rx.recv()? {
+                    Event::Input(event) => match event.code {
+                        KeyCode::Char('q') => {
+                            // Call shutdown method
+                            shutdown(terminal.backend_mut())?;
+                            break;
+                        },
+                        KeyCode::Esc => { app.input_mode = InputMode::Normal } 
+                        _ => {}
+                    },
+                    Event::Tick => {}
+                }        
+            }
+            InputMode::Visual => {}
         }
+        
     }
 
     Ok(())

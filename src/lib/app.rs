@@ -1,13 +1,13 @@
 use super::workingdir::WorkingDir;
 use super::file::File;
 
-use tui::widgets::{List, ListItem, ListState, Paragraph};
-use tui::text::Span;
+use tui::widgets::ListState;
 
 // Handles the state of the App
 pub enum InputMode {
     Normal,
     Editing,
+    Visual,
 }
 
 pub struct App {

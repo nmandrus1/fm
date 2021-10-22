@@ -8,16 +8,18 @@ fm is a TUI file manager that I decided to write and see how far I could get. It
 # Features
 - Colors? (Who doesn't like colors)
 - Moving around the filesystem
+- Preview contents of a directory or file
+- Open a file in preferred text editor (hardcoded right now but the feature is there)
+- Searching a directory
 
 As you can see it's not very feature rich yet but there are plenty of features being planned.
 
 # Near Future
-- Basic deleting, moving, copying, pasting 
-- Preview contents of a directory or file
-- Open a file in preferred text editor
+- Basic deleting, moving, copying, pasting, renaming
 - Config file for specific actions for specific files
 - More keybinds for navigation
 - And probably some other stuff (Custom Colors?)
+- Visual mode for selected files
 
 # Installing
 Clone the repository, open the file, and run

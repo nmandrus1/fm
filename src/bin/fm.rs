@@ -147,7 +147,6 @@ fn render_loop(
                             app.input_mode = InputMode::Editing
                         } else {
                             app.input_mode = InputMode::Editing;
-                            app.input.push_str("/");
                             app.requesting_input = true;
                         }
                     },

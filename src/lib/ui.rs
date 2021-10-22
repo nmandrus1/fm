@@ -1,9 +1,12 @@
 use std::path::Path;
 
+use super::userinput::Input;
+
 use super::app::{App, InputMode};
 use super::workingdir::WorkingDir;
 use super::file::File;
 use super::filetype::FileType;
+// use super::userinput::Input;
 
 use tui::Frame;
 use tui::backend::Backend;
@@ -47,8 +50,8 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
         InputMode::Editing => {
             f.render_widget(gen_cwd(app.wd.cwd()), chunks[0]);
-            f.render_widget(gen_input(&app.input), chunks[2]);
-            f.set_cursor(chunks[2].x + app.input.len() as u16, chunks[2].y + 1);
+            f.render_widget(gen_input(&app.user_inp.output()), chunks[2]);
+            f.set_cursor(chunks[2].x + app.user_inp.output().len() as u16, chunks[2].y + 1);
             f.render_widget(list, middle_chunks[0]);
         },
         InputMode::Visual => {}
@@ -186,12 +189,12 @@ fn list_from_files<'a>(files: &[File]) -> Vec<ListItem<'a>> {
 fn render_empty<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let (chunks, _) = gen_chunks(f);
     f.render_widget(gen_cwd(app.wd.cwd()), chunks[0]);
-    let err_msg = format!("Pattern not found: {}", &app.input[1..]);
+    let err_msg = format!("Pattern not found: {}", &app.user_inp.output()[1..]);
     let err = invalid_prev(&err_msg)
         .block(Block::default().borders(Borders::LEFT | Borders::RIGHT));
     f.render_widget(err, chunks[1]);
-    f.render_widget(gen_input(&app.input), chunks[2]);
-    f.set_cursor(chunks[2].x + app.input.len() as u16, chunks[2].y + 1);
+    f.render_widget(gen_input(&app.user_inp.output()), chunks[2]);
+    f.set_cursor(chunks[2].x + app.user_inp.output().len() as u16, chunks[2].y + 1);
 }
 
 fn gen_chunks<B: Backend>(f: &mut Frame<B>) -> (Vec<Rect>, Vec<Rect>) {
@@ -223,8 +226,8 @@ fn nmode_extra_chunks(chunks: &[Rect]) -> Vec<Rect> {
             [
                  Constraint::Percentage(13),
                  Constraint::Percentage(13),
-                 Constraint::Percentage(13),
-                 Constraint::Percentage(61),
+                 Constraint::Percentage(14),
+                 Constraint::Percentage(60),
             ].as_ref()
         )
         .split(chunks[2])

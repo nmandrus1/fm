@@ -28,14 +28,15 @@ impl WorkingDir {
     }
 
     /// Moves the cwd to self.cwd + path
-    pub fn forward(&mut self, path: PathBuf) {
+    pub fn forward(&mut self, path: &Path) {
         if self.len > 0 {
             self.cwd.push(path);
             self.update();
         }
     }
 
-    /// Goes back by num directories or until it reaches the root directory
+    /// Goes back a directory if it can
+    /// Returns true if it can go back and false otherwise
     pub fn back(&mut self) -> bool {
         if self.cwd.pop() {
             self.update();
@@ -77,7 +78,8 @@ impl WorkingDir {
     pub fn get_files(path: &Path) -> std::io::Result<Vec<File>> {
         match std::fs::read_dir(path) {
             Ok(iter) => { 
-                let files = iter.map(|d| File::from(d.unwrap())).collect();
+                let mut files = iter.map(|d| File::from(d.unwrap())).collect::<Vec<_>>();
+                files.sort();
                 Ok(files)
             },
             Err(e) => Err(e),

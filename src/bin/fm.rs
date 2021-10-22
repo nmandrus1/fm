@@ -66,111 +66,123 @@ fn render_loop(
         terminal.draw(|rect| ui::draw(rect, &mut app))?;
 
         // Handle input send from other thread
-        match app.input_mode {
-            InputMode::Normal => {
-                match rx.recv()? {
-                    Event::Input(event) => match event.code {
-                        KeyCode::Char('q') => {
-                            // Call shutdown method
-                            shutdown(terminal.backend_mut())?;
-                            break;
-                        },
-                        // Goes down the list and wraps up to the top
-                        KeyCode::Char('j') => {
-                            if let Some(selected) = app.flist_state.selected() {
-                                let num_files = app.wd.files().len();
-                                if selected >= num_files -1 {
-                                    app.flist_state.select(Some(0))
-                                } else {
-                                    app.flist_state.select(Some(selected + 1))
-                                }
-                            }
-                        },
-                        // Goes up the list
-                        KeyCode::Char('k') => {
-                            if let Some(selected) = app.flist_state.selected() {
-                                if selected > 0 {
-                                    app.flist_state.select(Some(selected - 1))
-                                } else {
-                                    app.flist_state.select(Some(0))
-                                }
-                            } 
-                        },
-                        // Going back
-                        KeyCode::Char('h') => {
-                            let res = app.wd.back();
-                            if !res {
-                                app.msg.push_str("Can't go further");
+        match rx.recv()? {
+            Event::Input(event) => match app.input_mode {
+                InputMode::Normal => match event.code {
+                    KeyCode::Char('q') => {
+                    // Call shutdown method
+                    shutdown(terminal.backend_mut())?;
+                    break;
+                    },
+                    // Goes down the list and wraps up to the top
+                    KeyCode::Char('j') => {
+                        if let Some(selected) = app.flist_state.selected() {
+                            let num_files = app.displayed_files.len();
+                            if selected >= num_files -1 {
+                                app.flist_state.select(Some(0))
                             } else {
-                            // Reset selection to start at the top of the next directory 
-                            app.new_list_state();
-                            }
-                        },
-                        // Going forward
-                        KeyCode::Char('l') => {
-                            // Checks to see if the directory is valid
-                            if app.selected_file().ftype == FileType::Directory
-                            && !WorkingDir::get_files(app.selected_file().path()).unwrap().is_empty() {
-                                let new_folder = app.selected_file().path().to_owned();
-                                app.wd.forward(new_folder);
-                                // Reset selection to start at the top of the next directory
-                                app.new_list_state();
-                            }                    
-                        },
-                        KeyCode::Enter => {
-                            if let Some(selected) = app.flist_state.selected() {
-                                if app.wd.files()[selected].ftype == FileType::File {
-                                    tx1.send(())?;
-                                    std::process::Command::new("nvim")
-                                        .arg(app.wd.files()[selected].path())
-                                        .spawn()
-                                        .unwrap()
-                                        .wait()
-                                        .unwrap();
-                                    execute!(terminal.backend_mut(), EnterAlternateScreen)?;
-                                    terminal.clear()?;
-                                    tx1.send(())?;
-                                }
+                                app.flist_state.select(Some(selected + 1))
                             }
                         }
-                        KeyCode::Char('g') => {
-                            if &app.key_press == "g" {
-                                app.flist_state.select(Some(0));
-                                app.key_press.clear()
+                    },
+                    // Goes up the list
+                    KeyCode::Char('k') => {
+                        if let Some(selected) = app.flist_state.selected() {
+                            if selected > 0 {
+                                app.flist_state.select(Some(selected - 1))
                             } else {
-                                app.key_press = "g".to_string();
+                                app.flist_state.select(Some(0))
+                            }
+                        } 
+                    },
+                    // Going back
+                    KeyCode::Char('h') => {
+                        app.wd_back();
+                    },
+                    // Going forward
+                    KeyCode::Char('l') => {
+                        // Checks to see if the directory is valid
+                        if app.selected_file().unwrap().ftype == FileType::Directory
+                        && !WorkingDir::get_files(
+                            app.selected_file().unwrap().path()).unwrap().is_empty() {
+                            app.wd_forward();
+                        }                    
+                    },
+                    KeyCode::Enter => {
+                        if let Some(selected_file) = app.selected_file() {
+                            if selected_file.ftype == FileType::File {
+                                tx1.send(())?;
+                                std::process::Command::new("nvim")
+                                    .arg(selected_file.path())
+                                    .spawn()
+                                    .unwrap()
+                                    .wait()
+                                    .unwrap();
+                                execute!(terminal.backend_mut(), EnterAlternateScreen)?;
+                                terminal.clear()?;
+                                tx1.send(())?;
                             }
                         }
-                        // Keymap to jump to the last element
-                        KeyCode::Char('G') => {
-                            let num_files = app.wd.files().len();
-                            app.flist_state.select(Some(num_files - 1))
+                    },
+                    KeyCode::Char('g') => {
+                        if &app.key_press == "g" {
+                            app.flist_state.select(Some(0));
+                            app.key_press.clear()
+                        } else {
+                            app.key_press = "g".to_string();
                         }
+                    },
+                    // Keymap to jump to the last element
+                    KeyCode::Char('G') => {
+                        let num_files = app.wd.files().len();
+                        app.flist_state.select(Some(num_files - 1))
+                    },
+                    KeyCode::Char(':') => { 
+                        app.input_mode = InputMode::Editing;
+                        app.input.clear();
+                        app.input.push(':');
+                    },
+                    KeyCode::Char('/') => { 
+                        if app.requesting_input {
+                            app.input_mode = InputMode::Editing
+                        } else {
+                            app.input_mode = InputMode::Editing;
+                            app.input.push_str("/");
+                            app.requesting_input = true;
+                        }
+                    },
 
-                        // KeyCode::Esc => { app.input_mode = InputMode::Normal },
-                        KeyCode::Char(':') => { app.input_mode = InputMode::Editing },
-                        _ => {}
+                    KeyCode::Esc => {
+                        app.end_search();
+                    }
+                    _ => {}
+                },
+                InputMode::Editing => match event.code {
+                    KeyCode::Esc => { 
+                        app.input_mode = InputMode::Normal;
+                        app.end_search();
                     },
-                    Event::Tick => {}
-                } 
+                    KeyCode::Enter => { 
+                        if app.displayed_files.is_empty() {
+                            app.new_ctx();
+                            app.end_search();
+                        }
+                        app.input_mode = InputMode::Normal;
+                    },
+                    KeyCode::Char(c) => {
+                        app.add_to_input(c)
+                    }, 
+                    KeyCode::Backspace => {
+                        app.del_from_input();
+                    }
+                    _ => {} 
+                }
+                InputMode::Visual => match event.code {
+                    _ => {}
+                }
             },
-            InputMode::Editing => {
-                match rx.recv()? {
-                    Event::Input(event) => match event.code {
-                        KeyCode::Char('q') => {
-                            // Call shutdown method
-                            shutdown(terminal.backend_mut())?;
-                            break;
-                        },
-                        KeyCode::Esc => { app.input_mode = InputMode::Normal } 
-                        _ => {}
-                    },
-                    Event::Tick => {}
-                }        
-            }
-            InputMode::Visual => {}
+            Event::Tick => {}
         }
-        
     }
 
     Ok(())
@@ -209,7 +221,7 @@ fn handle_input(tx: mpsc::Sender<Event<KeyEvent>>, rx: mpsc::Receiver<()>) {
                 } 
 
             } else {
-                // thread::sleep(tick_rate);
+                while rx.recv_timeout(tick_rate).is_err() {}
             }
         }
     });

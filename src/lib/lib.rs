@@ -4,6 +4,7 @@ pub mod file;
 pub mod filetype;
 pub mod app;
 pub mod ui;
+pub mod userinput;
 
 #[cfg(test)]
 mod tests {

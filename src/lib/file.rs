@@ -5,14 +5,15 @@ use tui::style::Color;
 
 use std::convert::From;
 use std::os::unix::prelude::{MetadataExt, OsStrExt};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct File {
     pub name: String,
     pub ftype: FileType,
     pub perms: Permissions,
-    path: PathBuf,
+    pub path: PathBuf,
+    pub size: u64,
 }
 
 impl File {
@@ -27,8 +28,21 @@ impl File {
     }
 
     /// Returns a Refernce to the path of the current File
-    pub fn path(&self) -> &PathBuf {
+    pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    pub fn size_to_readable(&self) -> String {
+        let size = self.size;
+        if size < 1000 {
+            return format!("{} B", size)
+        } else {
+            let mut iter = IntoIterator::into_iter(['k', 'M', 'G', 'T', 'E'])
+                .enumerate()
+                .skip_while(|(i, _)| size / ((*i + 1) * 1000) as u64 > 999_950);
+            let (i, ch) = iter.next().unwrap();
+            return format!("{:.2} {}B", size / ((i + 1) * 1000) as u64, ch)
+        }
     }
 }
 
@@ -38,9 +52,11 @@ impl From<std::fs::DirEntry> for File {
         // let name = String::from_utf8_lossy(entry.file_name().as_bytes().into()).to_string();
         let name = String::from_utf8(entry.file_name().as_bytes().to_vec()).unwrap();
         let path = entry.path();
-        let perms = match entry.metadata() {
-            Ok(mdata) => Permissions::from(mdata.mode()),
-            Err(_) => Permissions::from(u32::MAX),
+        let (perms, size) = match entry.metadata() {
+            Ok(mdata) => {
+                (Permissions::from(mdata.mode()), mdata.size())
+            }
+            Err(_) => (Permissions::from(u32::MAX), 0)
         };
 
         let ftype = match entry.file_type() {
@@ -58,7 +74,7 @@ impl From<std::fs::DirEntry> for File {
             Err(..) => FileType::File
         };
 
-        Self { name, ftype, perms, path}
+        Self { name, ftype, perms, path, size }
     }
 }
 
@@ -86,8 +102,6 @@ impl PartialOrd for File {
 
 impl PartialEq for File {
     fn eq(&self, other: &Self) -> bool {
-        
-
         (&self.name, &self.ftype) == (&other.name, &other.ftype)
     }
 }

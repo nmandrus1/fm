@@ -16,47 +16,59 @@ use tui::widgets::{
 };
 
 pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    // Create Layout for entire window
-    let (chunks, middle_chunks, extra_chunks) = gen_chunks(f);
 
-    let selected_file = &app.selected_file().to_owned();
-    f.render_widget(gen_cwd_widget(app.wd.cwd()), chunks[0]);
+    let selected_file = if app.selected_file().is_none() {
+        render_empty(f, app);
+        return ()
+    } else {
+        app.selected_file().unwrap().to_owned()
+    };
+
+    let (chunks, middle_chunks) = gen_chunks(f);
+    let files = list_from_files(&app.displayed_files);
+    let list = gen_list(&files, &selected_file);
+
+    match app.input_mode {
+        InputMode::Normal => {
+            let extra_chunks = nmode_extra_chunks(&chunks);
+            f.render_widget(gen_cwd(app.wd.cwd()), chunks[0]);
+            f.render_widget(gen_input(""), extra_chunks[3]);
+            f.render_stateful_widget(list, middle_chunks[0], &mut app.flist_state);
+            
+            let (ex1, ex2, ex3) = gen_extras(
+                    &selected_file, app.flist_state.selected().unwrap(), 
+                    app.displayed_files.len(), 
+            );
+
+            f.render_widget(ex1, extra_chunks[0]);
+            f.render_widget(ex2, extra_chunks[1]);
+            f.render_widget(ex3, extra_chunks[2]);
+        }, 
+
+        InputMode::Editing => {
+            f.render_widget(gen_cwd(app.wd.cwd()), chunks[0]);
+            f.render_widget(gen_input(&app.input), chunks[2]);
+            f.set_cursor(chunks[2].x + app.input.len() as u16, chunks[2].y + 1);
+            f.render_widget(list, middle_chunks[0]);
+        },
+        InputMode::Visual => {}
+    };
 
     match selected_file.ftype {
         FileType::Directory => {
-            match gen_dir_preview(selected_file) {
+            match gen_dir_preview(&selected_file) {
                 Ok(list) => f.render_widget(list, middle_chunks[1]),
                 Err(s) => f.render_widget(invalid_prev(&s), middle_chunks[1])
             }
         },
         FileType::File => { 
-            match gen_file_preview(selected_file) {
+            match gen_file_preview(&selected_file) {
                 Ok(file) => f.render_widget(file, middle_chunks[1]),
                 Err(s) => f.render_widget(invalid_prev(&s), middle_chunks[1]),
             }
         }
         _ => {}
     };
-
-    f.render_widget(gen_extras(selected_file), extra_chunks[0]);
-
-    let list = gen_files(&app.wd, selected_file);
-    match app.input_mode {
-        InputMode::Normal => {
-            f.render_widget(gen_input("Normal Mode"), extra_chunks[1]);
-            f.render_stateful_widget(list, middle_chunks[0], &mut app.flist_state);
-        }, 
-        _ => {
-            f.render_widget(gen_input("Input Mode"), extra_chunks[1]);
-            f.render_widget(list, middle_chunks[0]);
-        },
-    };
-
-    if app.msg_alive {
-        f.render_widget(gen_msg(&app.msg), extra_chunks[2]);
-    } else {
-        f.render_widget(gen_msg(""), extra_chunks[2]);
-    }
 }
 
 fn gen_file_preview<'a>(file: &File) -> anyhow::Result<Paragraph<'a>, String> {
@@ -71,14 +83,8 @@ fn gen_file_preview<'a>(file: &File) -> anyhow::Result<Paragraph<'a>, String> {
     }
 }
 
-fn gen_msg(msg: &str) -> Paragraph {
-    Paragraph::new(
-        Span::styled(msg, Style::default().fg(Color::Red))
-    ).block(Block::default().borders(Borders::TOP))
-}
-
 fn gen_input<'a>(input: &'a str) -> Paragraph<'a> {
-    Paragraph::new(input).alignment(Alignment::Center)
+    Paragraph::new(input).alignment(Alignment::Left)
         .block(Block::default().borders(Borders::TOP))
 }
 
@@ -97,7 +103,7 @@ fn gen_dir_preview(file: &File) -> anyhow::Result<List, String> {
     }
 }
 
-fn gen_files<'a>(wd: &'a WorkingDir, selected_file: &File) -> List<'a> {
+fn gen_list<'a>(files: &'a [ListItem], selected_file: &File) -> List<'a> {
     let list_block = Block::default()
         .borders(Borders::RIGHT | Borders::LEFT)
         .style(Style::default().fg(Color::White))
@@ -105,9 +111,8 @@ fn gen_files<'a>(wd: &'a WorkingDir, selected_file: &File) -> List<'a> {
 
     //TODO Create a new function to Render and Empty Directory
 
-    let file_list = list_from_files(wd.files());
-
-    let list = List::new(file_list).block(list_block)
+    let list = List::new(files)
+        .block(list_block)
         .highlight_style(
             Style::default()
                 .bg(selected_file.color())
@@ -118,35 +123,36 @@ fn gen_files<'a>(wd: &'a WorkingDir, selected_file: &File) -> List<'a> {
     list
 }
 
-fn gen_extras<'a>(file: &File) -> Paragraph<'a> {
+fn gen_extras<'a>(
+    file: &File, 
+    selected: usize, 
+    total: usize)
+    -> (Paragraph<'a>, Paragraph<'a>, Paragraph<'a>) 
+{
     let mut color = Color::White;
-
     if !file.perms.is_valid() { color = Color::Red }
-    
-    Paragraph::new(format!(" {}", file.perms.to_string()))
-        .style(Style::default().fg(color))
-        .alignment(Alignment::Left)
-        .block(
-            Block::default()
+
+    let block = Block::default()
                 .borders(Borders::TOP)
                 .style(Style::default().fg(Color::White))
-                .border_type(BorderType::Plain),
-    )
+                .border_type(BorderType::Plain);
+
+    let p1 = Paragraph::new(file.perms.to_string())
+        .style(Style::default().fg(color)).block(block.clone())
+        .alignment(Alignment::Center);
+
+    let p2 = Paragraph::new(file.size_to_readable())
+        .style(Style::default().fg(color)).block(block.clone())
+        .alignment(Alignment::Center);
+
+    let p3 = Paragraph::new(format!("{}/{}", selected + 1, total))
+        .style(Style::default().fg(color)).block(block)
+        .alignment(Alignment::Center);
+        
+    (p1, p2, p3)
 }
 
-fn gen_keypress(input: &str) -> Paragraph {
-    Paragraph::new(Span::from(input))
-        .style(Style::default().fg(Color::White))
-        .alignment(Alignment::Center)
-        .block(
-            Block::default()
-                .borders(Borders::TOP)
-                .style(Style::default().fg(Color::White))
-                .border_type(BorderType::Plain),
-    ) 
-}
-
-fn gen_cwd_widget<'a>(cwd: &Path) -> Paragraph<'a> {
+fn gen_cwd<'a>(cwd: &Path) -> Paragraph<'a> {
     Paragraph::new(Span::raw(cwd.display().to_string()))
         .style(Style::default().add_modifier(Modifier::BOLD).fg(Color::LightBlue))
         .alignment(Alignment::Center)
@@ -177,7 +183,18 @@ fn list_from_files<'a>(files: &[File]) -> Vec<ListItem<'a>> {
     .collect::<Vec<_>>()
 }
 
-fn gen_chunks<B: Backend>(f: &mut Frame<B>) -> (Vec<Rect>, Vec<Rect>, Vec<Rect>) {
+fn render_empty<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+    let (chunks, _) = gen_chunks(f);
+    f.render_widget(gen_cwd(app.wd.cwd()), chunks[0]);
+    let err_msg = format!("Pattern not found: {}", &app.input[1..]);
+    let err = invalid_prev(&err_msg)
+        .block(Block::default().borders(Borders::LEFT | Borders::RIGHT));
+    f.render_widget(err, chunks[1]);
+    f.render_widget(gen_input(&app.input), chunks[2]);
+    f.set_cursor(chunks[2].x + app.input.len() as u16, chunks[2].y + 1);
+}
+
+fn gen_chunks<B: Backend>(f: &mut Frame<B>) -> (Vec<Rect>, Vec<Rect>) {
     let chunks = Layout::default()
         .direction(tui::layout::Direction::Vertical)
         .margin(0)
@@ -194,16 +211,21 @@ fn gen_chunks<B: Backend>(f: &mut Frame<B>) -> (Vec<Rect>, Vec<Rect>, Vec<Rect>)
         .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
         .split(chunks[1]); 
 
-    let extra_chunks = Layout::default()
+    
+
+    (chunks, middle_chunks)
+}
+
+fn nmode_extra_chunks(chunks: &[Rect]) -> Vec<Rect> {
+     Layout::default()
         .direction(tui::layout::Direction::Horizontal)
         .constraints(
             [
-                 Constraint::Percentage(20),
-                 Constraint::Percentage(60),
-                 Constraint::Percentage(20),
+                 Constraint::Percentage(13),
+                 Constraint::Percentage(13),
+                 Constraint::Percentage(13),
+                 Constraint::Percentage(61),
             ].as_ref()
         )
-        .split(chunks[2]);
-
-    (chunks, middle_chunks, extra_chunks)
+        .split(chunks[2])
 }

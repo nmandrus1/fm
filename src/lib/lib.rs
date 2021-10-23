@@ -6,6 +6,9 @@ pub mod app;
 pub mod ui;
 pub mod userinput;
 
+pub use app::App;
+pub use app::InputMode;
+
 #[cfg(test)]
 mod tests {
     #[test]

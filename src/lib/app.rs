@@ -1,4 +1,3 @@
-use super::userinput::{Input, Search};
 use super::workingdir::WorkingDir;
 use super::file::File;
 
@@ -11,8 +10,7 @@ pub enum InputMode {
     Visual,
 }
 
-// pub struct App<U: Input> {
-pub struct App<'a> {
+pub struct App {
     // Input mode
     pub input_mode: InputMode,
     // Contains the user input in Editing mode
@@ -28,38 +26,28 @@ pub struct App<'a> {
     pub msg: String,
     // Requesting for user input
     pub requesting_input: bool,
-    // Struct that handles uesr input
-    pub user_inp: Search<'a>,
 }
 
-// impl<U: Input> App<U> {
-impl<'a> App<'a> {
-
-    pub fn add_to_input(&mut self, c: char) {
-        self.user_inp.append_to_inp(c);
-        self.update_displayed_files();
-    }
-
-    pub fn del_from_input(&mut self) {
-        self.user_inp.del();
-        self.update_displayed_files();
-        // println!("{}", self.user_inp.is_receiving);
-        if !self.user_inp.is_receiving {
-            self.input_mode = InputMode::Normal;
-            self.requesting_input = false;
+impl App {
+    // Should be handled by the input struct
+    pub fn on_enter(&mut self) {
+        if self.displayed_files.is_empty() {
+            self.end_input();
+        } else {
+            self.input_mode = InputMode::Normal
         }
     }
 
-    pub fn end_search(&mut self) {
+    pub fn end_input(&mut self) {
         self.displayed_files = self.wd.files().to_vec();
-        self.user_inp.clear();
+        self.input_mode = InputMode::Normal;
         self.new_ctx();
     }
 
-    fn update_displayed_files(&mut self) {
+    pub fn update_displayed_files(&mut self, needle: &str) {
         self.displayed_files = self.wd.files()
             .iter()
-            .filter(|f| f.name.starts_with(&self.user_inp.input()))
+            .filter(|f| f.name.starts_with(needle))
             .cloned()
             .collect();
         
@@ -77,7 +65,6 @@ impl<'a> App<'a> {
     pub fn new_ctx(&mut self) {
         self.new_list_state();
         self.requesting_input = false;
-        self.user_inp.clear();
     }
 
     pub fn wd_back(&mut self) {
@@ -105,7 +92,6 @@ impl<'a> App<'a> {
         flist_state.select(Some(0));
         let msg = String::with_capacity(15);
         let requesting_input = false;
-        let user_inp = Search::default();
 
         Self {
             input_mode,
@@ -116,7 +102,6 @@ impl<'a> App<'a> {
             flist_state,
             msg,
             requesting_input,
-            user_inp
         }
     }
 
@@ -143,11 +128,5 @@ impl<'a> App<'a> {
         } else {
             self.flist_state.select(Some(0))
         }
-    }
-}
-
-impl<'a> Default for App <'a> {
-    fn default() -> Self {
-        Self::new()
     }
 }

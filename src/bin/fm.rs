@@ -1,6 +1,7 @@
 // std Imports
 use std::sync::mpsc;
 
+use fm::userinput::{Input, Search};
 // Lib Imports
 use fm::{filetype::FileType, workingdir::WorkingDir};
 use fm::{app::{App, InputMode}, ui};
@@ -61,9 +62,10 @@ fn render_loop(
 {
     terminal.hide_cursor()?;
     let mut app = App::new();
+    let mut user_inp = Search::default();
 
     loop {
-        terminal.draw(|rect| ui::draw(rect, &mut app))?;
+        terminal.draw(|rect| ui::draw(rect, &mut app, &mut user_inp))?;
 
         // Handle input send from other thread
         match rx.recv()? {
@@ -98,6 +100,7 @@ fn render_loop(
                     // Going back
                     KeyCode::Char('h') => {
                         app.wd_back();
+                        user_inp.clear();
                     },
                     // Going forward
                     KeyCode::Char('l') => {
@@ -106,6 +109,7 @@ fn render_loop(
                         && !WorkingDir::get_files(
                             app.selected_file().unwrap().path()).unwrap().is_empty() {
                             app.wd_forward();
+                            user_inp.clear();
                         }                    
                     },
                     KeyCode::Enter => {
@@ -152,27 +156,24 @@ fn render_loop(
                     },
 
                     KeyCode::Esc => {
-                        app.end_search();
+                        app.end_input();
                     }
                     _ => {}
                 },
                 InputMode::Editing => match event.code {
                     KeyCode::Esc => { 
                         app.input_mode = InputMode::Normal;
-                        app.end_search();
+                        app.end_input();
+                        user_inp.clear();
                     },
                     KeyCode::Enter => { 
-                        if app.displayed_files.is_empty() {
-                            app.new_ctx();
-                            app.end_search();
-                        }
-                        app.input_mode = InputMode::Normal;
-                    },
+                        user_inp.on_enter(&mut app)
+                    }
                     KeyCode::Char(c) => {
-                        app.add_to_input(c)
+                        user_inp.add_to_input(c, &mut app)
                     }, 
                     KeyCode::Backspace => {
-                        app.del_from_input();
+                        user_inp.del(&mut app);
                     }
                     _ => {} 
                 }

@@ -1,12 +1,10 @@
 use std::path::Path;
 
-use super::userinput::Input;
-
 use super::app::{App, InputMode};
 use super::workingdir::WorkingDir;
 use super::file::File;
 use super::filetype::FileType;
-// use super::userinput::Input;
+use super::userinput::Input;
 
 use tui::Frame;
 use tui::backend::Backend;
@@ -18,10 +16,10 @@ use tui::widgets::{
     ListItem, Paragraph,
 };
 
-pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+pub fn draw<U: Input, B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut U) {
 
     let selected_file = if app.selected_file().is_none() {
-        render_empty(f, app);
+        render_empty(f, app, user_inp);
         return ()
     } else {
         app.selected_file().unwrap().to_owned()
@@ -50,8 +48,8 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
         InputMode::Editing => {
             f.render_widget(gen_cwd(app.wd.cwd()), chunks[0]);
-            f.render_widget(gen_input(&app.user_inp.output()), chunks[2]);
-            f.set_cursor(chunks[2].x + app.user_inp.output().len() as u16, chunks[2].y + 1);
+            f.render_widget(gen_input(&user_inp.output()), chunks[2]);
+            f.set_cursor(chunks[2].x + user_inp.output().len() as u16, chunks[2].y + 1);
             f.render_widget(list, middle_chunks[0]);
         },
         InputMode::Visual => {}
@@ -186,15 +184,15 @@ fn list_from_files<'a>(files: &[File]) -> Vec<ListItem<'a>> {
     .collect::<Vec<_>>()
 }
 
-fn render_empty<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+fn render_empty<U: Input, B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut U) {
     let (chunks, _) = gen_chunks(f);
     f.render_widget(gen_cwd(app.wd.cwd()), chunks[0]);
-    let err_msg = format!("Pattern not found: {}", &app.user_inp.output()[1..]);
+    let err_msg = format!("Pattern not found: {}", &user_inp.output()[1..]);
     let err = invalid_prev(&err_msg)
         .block(Block::default().borders(Borders::LEFT | Borders::RIGHT));
     f.render_widget(err, chunks[1]);
-    f.render_widget(gen_input(&app.user_inp.output()), chunks[2]);
-    f.set_cursor(chunks[2].x + app.user_inp.output().len() as u16, chunks[2].y + 1);
+    f.render_widget(gen_input(&user_inp.output()), chunks[2]);
+    f.set_cursor(chunks[2].x + user_inp.output().len() as u16, chunks[2].y + 1);
 }
 
 fn gen_chunks<B: Backend>(f: &mut Frame<B>) -> (Vec<Rect>, Vec<Rect>) {

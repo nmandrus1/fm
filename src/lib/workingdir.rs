@@ -40,9 +40,9 @@ impl WorkingDir {
     pub fn back(&mut self) -> bool {
         if self.cwd.pop() {
             self.update();
-            return true
+            true
         } else {
-            return false
+            false
         }
     }
 

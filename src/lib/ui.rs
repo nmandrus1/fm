@@ -20,7 +20,7 @@ pub fn draw<U: Input, B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mu
 
     let selected_file = if app.selected_file().is_none() {
         render_empty(f, app, user_inp);
-        return ()
+        return 
     } else {
         app.selected_file().unwrap().to_owned()
     };
@@ -84,7 +84,7 @@ fn gen_file_preview<'a>(file: &File) -> anyhow::Result<Paragraph<'a>, String> {
     }
 }
 
-fn gen_input<'a>(input: &'a str) -> Paragraph<'a> {
+fn gen_input(input: &str) -> Paragraph {
     Paragraph::new(input).alignment(Alignment::Left)
         .block(Block::default().borders(Borders::TOP))
 }

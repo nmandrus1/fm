@@ -3,7 +3,6 @@ use super::{Input, InputMode, App};
 pub struct Search <'a> {
     pub msg: &'a str,
     pub input: String,
-    pub is_receiving: bool,
 }
 
 impl<'a> Default for Search<'a> {
@@ -11,14 +10,13 @@ impl<'a> Default for Search<'a> {
         Self {
             msg: "/", 
             input: String::with_capacity(15),
-            is_receiving: true
         }
     }
 }
 
 impl<'a> Input for Search<'a> {
     fn msg(&self) -> &'a str {
-        &self.msg
+        self.msg
     }
 
     fn input(&self) -> &str {
@@ -34,10 +32,6 @@ impl<'a> Input for Search<'a> {
         }
     }
 
-    fn is_receiving(&self) -> bool {
-        self.is_receiving
-    }
-
     fn add_to_input(&mut self, ch: char, app: &mut App) {
         self.input.push(ch);
         app.update_displayed_files(self.input())
@@ -48,14 +42,11 @@ impl<'a> Input for Search<'a> {
             self.input.pop();
             app.update_displayed_files(self.input())
         } else {
-            self.is_receiving = false;
-            self.clear();
             app.end_input();
         }
     }
 
     fn clear(&mut self) {
         self.input.clear();
-        self.is_receiving = true;
     }
 }

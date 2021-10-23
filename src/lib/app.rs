@@ -23,7 +23,7 @@ pub struct App {
     // Current List state
     pub flist_state: ListState,
     // msg contains error messages and keybinds
-    pub msg: String,
+    pub err_msg: String,
     // Requesting for user input
     pub requesting_input: bool,
 }
@@ -38,6 +38,8 @@ impl App {
         }
     }
 
+    /// Used when you want to end the input 
+    /// and restore the context to default conditions
     pub fn end_input(&mut self) {
         self.displayed_files = self.wd.files().to_vec();
         self.input_mode = InputMode::Normal;
@@ -90,7 +92,7 @@ impl App {
 
         let mut flist_state = ListState::default();
         flist_state.select(Some(0));
-        let msg = String::with_capacity(15);
+        let err_msg = String::with_capacity(15);
         let requesting_input = false;
 
         Self {
@@ -100,7 +102,7 @@ impl App {
             wd,
             displayed_files,
             flist_state,
-            msg,
+            err_msg,
             requesting_input,
         }
     }

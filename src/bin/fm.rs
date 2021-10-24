@@ -1,7 +1,7 @@
 // std Imports
 use std::sync::mpsc;
 
-use fm::userinput::{Input, Search};
+use fm::userinput::{Input, Search, FileDelete, FileCreate};
 // Lib Imports
 use fm::{filetype::FileType, workingdir::WorkingDir};
 use fm::{app::{App, InputMode}, ui};
@@ -62,7 +62,9 @@ fn render_loop(
 {
     terminal.hide_cursor()?;
     let mut app = App::new();
-    let mut user_inp = Search::default();
+    let mut user_inp: Box<dyn Input> = Box::new(Search::default());
+
+    // let mut user_inp = Search::default();
 
     loop {
         terminal.draw(|rect| ui::draw(rect, &mut app, &mut user_inp))?;
@@ -106,8 +108,7 @@ fn render_loop(
                     KeyCode::Char('l') => {
                         // Checks to see if the directory is valid
                         if app.selected_file().unwrap().ftype == FileType::Directory
-                        && !WorkingDir::get_files(
-                            app.selected_file().unwrap().path()).unwrap().is_empty() {
+                        && std::fs::read_dir(app.selected_file().unwrap().path()).is_ok() {
                             app.wd_forward();
                             user_inp.clear();
                         }                    
@@ -116,6 +117,7 @@ fn render_loop(
                         if let Some(selected_file) = app.selected_file() {
                             if selected_file.ftype == FileType::File {
                                 tx1.send(())?;
+                                execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
                                 std::process::Command::new("nvim")
                                     .arg(selected_file.path())
                                     .spawn()
@@ -127,6 +129,7 @@ fn render_loop(
                                 tx1.send(())?;
                             }
                         }
+                        app.selected_file_mut().unwrap().update_size();
                     },
                     KeyCode::Char('g') => {
                         if &app.key_press == "g" {
@@ -141,15 +144,19 @@ fn render_loop(
                         let num_files = app.wd.files().len();
                         app.flist_state.select(Some(num_files - 1))
                     },
-                    KeyCode::Char(':') => { 
+                    KeyCode::Char('r') => { 
                         app.input_mode = InputMode::Editing;
-                        app.input.clear();
-                        app.input.push(':');
+                        user_inp = Box::new(FileDelete::default());
                     },
+                    KeyCode::Char('a') => {
+                        app.input_mode = InputMode::Editing;
+                        user_inp = Box::new(FileCreate::default())
+                    }
                     KeyCode::Char('/') => { 
                         if app.requesting_input {
                             app.input_mode = InputMode::Editing
                         } else {
+                            user_inp = Box::new(Search::default());
                             app.input_mode = InputMode::Editing;
                             app.requesting_input = true;
                         }
@@ -162,7 +169,7 @@ fn render_loop(
                 },
                 InputMode::Editing => match event.code {
                     KeyCode::Esc => { 
-                        app.input_mode = InputMode::Normal;
+                        app.to_normal_mode();
                         app.end_input();
                         user_inp.clear();
                     },
@@ -179,7 +186,8 @@ fn render_loop(
                 }
                 InputMode::Visual => match event.code {
                     _ => {}
-                }
+                },
+                InputMode::Error => { app.to_normal_mode() }
             },
             Event::Tick => {}
         }

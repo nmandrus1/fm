@@ -1,4 +1,4 @@
-use super::{Input, InputMode, App};
+use super::{Input, App};
 
 pub struct Search <'a> {
     pub msg: &'a str,
@@ -28,21 +28,21 @@ impl<'a> Input for Search<'a> {
             self.clear();
             app.end_input();
         } else {
-            app.input_mode = InputMode::Normal;
+            app.to_normal_mode()
         }
     }
 
     fn add_to_input(&mut self, ch: char, app: &mut App) {
         self.input.push(ch);
-        app.update_displayed_files(self.input())
+        app.update_displayed_files(Some(self.input()))
     }
 
     fn del(&mut self, app: &mut App) {
         if !self.input.is_empty() {
             self.input.pop();
-            app.update_displayed_files(self.input())
+            app.update_displayed_files(Some(self.input()))
         } else {
-            app.end_input();
+            app.to_normal_mode()
         }
     }
 

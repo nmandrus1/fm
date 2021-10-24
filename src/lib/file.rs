@@ -32,6 +32,7 @@ impl File {
         &self.path
     }
 
+    /// Converts size in raw bytes to a human readable format
     pub fn size_to_readable(&self) -> String {
         let size = self.size;
         if size < 1000 {
@@ -43,6 +44,11 @@ impl File {
             let (i, ch) = iter.next().unwrap();
             return format!("{:.2} {}B", size / ((i + 1) * 1000) as u64, ch)
         }
+    }
+
+    /// updates the size field of the file
+    pub fn update_size(&mut self) {
+        self.size = std::fs::metadata(self.path()).unwrap().size();
     }
 }
 

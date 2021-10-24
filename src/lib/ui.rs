@@ -16,7 +16,7 @@ use tui::widgets::{
     ListItem, Paragraph,
 };
 
-pub fn draw<U: Input, B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut U) {
+pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut Box<dyn Input>) {
 
     let selected_file = if app.selected_file().is_none() {
         render_empty(f, app, user_inp);
@@ -52,7 +52,12 @@ pub fn draw<U: Input, B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mu
             f.set_cursor(chunks[2].x + user_inp.output().len() as u16, chunks[2].y + 1);
             f.render_widget(list, middle_chunks[0]);
         },
-        InputMode::Visual => {}
+        InputMode::Visual => {},
+        InputMode::Error => {
+            f.render_widget(gen_cwd(app.wd.cwd()), chunks[0]);
+            f.render_widget(gen_err(&app.err_msg), chunks[2]);
+            f.render_widget(list, middle_chunks[0]);
+        }
     };
 
     match selected_file.ftype {
@@ -165,6 +170,18 @@ fn gen_cwd<'a>(cwd: &Path) -> Paragraph<'a> {
     )
 }
 
+fn gen_err(msg: &str) -> Paragraph {
+    Paragraph::new(msg)
+        .style(Style::default().fg(Color::Red)
+               .add_modifier(Modifier::BOLD))
+        .alignment(Alignment::Center)
+        .block(
+            Block::default()
+            .borders(Borders::TOP)
+            .style(Style::default().fg(Color::White))
+            .border_type(BorderType::Plain))
+}
+
 fn prev_block() -> Block<'static> {
 Block::default()
     .borders(Borders::RIGHT)
@@ -184,7 +201,7 @@ fn list_from_files<'a>(files: &[File]) -> Vec<ListItem<'a>> {
     .collect::<Vec<_>>()
 }
 
-fn render_empty<U: Input, B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut U) {
+fn render_empty<B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut Box<dyn Input>) {
     let (chunks, _) = gen_chunks(f);
     f.render_widget(gen_cwd(app.wd.cwd()), chunks[0]);
     let err_msg = format!("Pattern not found: {}", &user_inp.output()[1..]);

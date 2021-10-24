@@ -86,8 +86,9 @@ impl WorkingDir {
         }
     }
 
-    // Called after any update to WorkingDir
-    fn update(&mut self) {
+    /// Gets the files from the current working directory
+    /// and updates the files to be held internally by App
+    pub fn update(&mut self) {
         self.files = Self::get_files(&self.cwd).unwrap();
         self.len = self.files.len();
     }

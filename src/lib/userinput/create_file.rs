@@ -7,6 +7,7 @@ use std::io::ErrorKind;
 pub struct FileCreate<'a> {
   msg: &'a str,
   input: String,
+  creating_dir: bool,
 }
 
 impl<'a> Default for FileCreate<'a> {
@@ -14,7 +15,16 @@ impl<'a> Default for FileCreate<'a> {
         Self {
             msg: " Create new file: ",
             input: String::with_capacity(20),
+            creating_dir: false,
         }
+    }
+}
+
+impl<'a> FileCreate<'a> {
+    pub fn dir(mut self) -> Self {
+        self.creating_dir = true;
+        self.msg = " Create new directory: ";
+        self
     }
 }
 
@@ -30,16 +40,27 @@ impl <'a> Input for FileCreate<'a> {
         new_file.push(PathBuf::from(self.input()));
 
         if !new_file.exists() {
-            match fs::File::create(new_file) {
-                Ok(_) => {},
-                Err(e) => match e.kind() {
-                    ErrorKind::PermissionDenied => app.err("Permission Denied"),
-                    _ => app.err("Unexpected Error"),
+            if self.creating_dir{
+                match fs::create_dir(new_file) {
+                    Ok(_) => {},
+                    Err(e) => match e.kind() {
+                        ErrorKind::PermissionDenied => app.err("Permission Denied"),
+                        _ => app.err("Unexpected Error"),
+                    } 
+                }
+            } else {
+                match fs::File::create(new_file) {
+                    Ok(_) => {},
+                    Err(e) => match e.kind() {
+                        ErrorKind::PermissionDenied => app.err("Permission Denied"),
+                        _ => app.err("Unexpected Error"),
+                    }
                 }
             }
 
             app.wd.update();
-            app.end_input();
+            app.update_displayed_files(None);
+            app.to_normal_mode();
         } else {
             app.err("Already Exists");
         }
@@ -58,7 +79,7 @@ impl <'a> Input for FileCreate<'a> {
         }
     }
 
-    fn msg(&self) -> &'a str {
+    fn msg(&self) -> &str {
         self.msg
     }
 

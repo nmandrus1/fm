@@ -33,7 +33,7 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut Box<dyn 
         InputMode::Normal => {
             let extra_chunks = nmode_extra_chunks(&chunks);
             f.render_widget(gen_cwd(app.wd.cwd()), chunks[0]);
-            f.render_widget(gen_input(""), extra_chunks[3]);
+            f.render_widget(gen_input(""), extra_chunks[4]);
             f.render_stateful_widget(list, middle_chunks[0], &mut app.flist_state);
             
             let (ex1, ex2, ex3) = gen_extras(
@@ -41,9 +41,9 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut Box<dyn 
                     app.displayed_files.len(), 
             );
 
-            f.render_widget(ex1, extra_chunks[0]);
-            f.render_widget(ex2, extra_chunks[1]);
-            f.render_widget(ex3, extra_chunks[2]);
+            f.render_widget(ex1, extra_chunks[1]);
+            f.render_widget(ex2, extra_chunks[2]);
+            f.render_widget(ex3, extra_chunks[3]);
         }, 
 
         InputMode::Editing => {
@@ -64,7 +64,7 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut Box<dyn 
         FileType::Directory => {
             match gen_dir_preview(&selected_file) {
                 Ok(list) => f.render_widget(list, middle_chunks[1]),
-                Err(s) => f.render_widget(invalid_prev(&s), middle_chunks[1])
+                Err(s) => f.render_widget(invalid_prev(s), middle_chunks[1])
             }
         },
         FileType::File => { 
@@ -84,7 +84,7 @@ fn gen_file_preview<'a>(file: &File) -> anyhow::Result<Paragraph<'a>, String> {
         Err(e) => match e.kind() {
             ErrorKind::Interrupted => Err("Read Interrupted".to_string()),
             ErrorKind::InvalidData => Err("Invalid UTF-8".to_string()),
-            _ => Err(format!("{:?}", e)),
+            _ => Err(e.to_string()),
         }
     }
 }
@@ -99,12 +99,17 @@ fn invalid_prev(msg: &str) -> Paragraph {
         .block(prev_block())
 }
 
-fn gen_dir_preview(file: &File) -> anyhow::Result<List, String> {
+fn gen_dir_preview(file: &File) -> anyhow::Result<List, &str> {
     match WorkingDir::get_files(file.path()) {
-        Ok(files) => Ok(List::new(list_from_files(&files)).block(prev_block())),
+        Ok(files) => {
+            if files.is_empty() {
+                return Err("Empty Directory")
+            }
+            Ok(List::new(list_from_files(&files)).block(prev_block()))
+        },
         Err(e) => match e.kind() {
-            std::io::ErrorKind::PermissionDenied => Err("Permission Denied".to_string()),
-            _ => Err(format!("{:?}", e)),
+            std::io::ErrorKind::PermissionDenied => Err("Permission Denied"),
+            _ => Err("Unexpected Error")
         }
     }
 }
@@ -239,9 +244,10 @@ fn nmode_extra_chunks(chunks: &[Rect]) -> Vec<Rect> {
         .direction(tui::layout::Direction::Horizontal)
         .constraints(
             [
+                 Constraint::Percentage(1),
                  Constraint::Percentage(13),
                  Constraint::Percentage(13),
-                 Constraint::Percentage(14),
+                 Constraint::Percentage(13),
                  Constraint::Percentage(60),
             ].as_ref()
         )

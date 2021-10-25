@@ -1,9 +1,9 @@
 // std Imports
 use std::sync::mpsc;
 
-use fm::userinput::{Input, Search, FileDelete, FileCreate};
+use fm::userinput::{Input, Search, FileDelete, FileCreate, FileRename};
 // Lib Imports
-use fm::{filetype::FileType, workingdir::WorkingDir};
+use fm::filetype::FileType;
 use fm::{app::{App, InputMode}, ui};
 
 // Crossterm Imports
@@ -107,8 +107,10 @@ fn render_loop(
                     // Going forward
                     KeyCode::Char('l') => {
                         // Checks to see if the directory is valid
+                        let iter = std::fs::read_dir(app.selected_file().unwrap().path());
                         if app.selected_file().unwrap().ftype == FileType::Directory
-                        && std::fs::read_dir(app.selected_file().unwrap().path()).is_ok() {
+                        && iter.is_ok() 
+                        && iter.unwrap().next().is_some() {
                             app.wd_forward();
                             user_inp.clear();
                         }                    
@@ -144,21 +146,32 @@ fn render_loop(
                         let num_files = app.wd.files().len();
                         app.flist_state.select(Some(num_files - 1))
                     },
-                    KeyCode::Char('r') => { 
+                    KeyCode::Char('d') => { 
                         app.input_mode = InputMode::Editing;
                         user_inp = Box::new(FileDelete::default());
                     },
-                    KeyCode::Char('a') => {
+                    KeyCode::Char('a')=> {
                         app.input_mode = InputMode::Editing;
                         user_inp = Box::new(FileCreate::default())
                     }
+                    KeyCode::Char('A') => {
+                        app.input_mode = InputMode::Editing;
+                        user_inp = Box::new(FileCreate::default().dir())
+                    }
+                    KeyCode::Char('r') => {
+                        app.to_editing_mode();
+                        user_inp = Box::new(FileRename::default())
+                    }
+                    KeyCode::Char('p') => {
+                        println!("name: {} path: {:?}", app.selected_file().unwrap().name, app.selected_file().unwrap().path())
+                    }
                     KeyCode::Char('/') => { 
-                        if app.requesting_input {
+                        if app.is_searching {
                             app.input_mode = InputMode::Editing
                         } else {
                             user_inp = Box::new(Search::default());
                             app.input_mode = InputMode::Editing;
-                            app.requesting_input = true;
+                            app.is_searching = true;
                         }
                     },
 
@@ -172,6 +185,7 @@ fn render_loop(
                         app.to_normal_mode();
                         app.end_input();
                         user_inp.clear();
+                        app.is_searching = false;
                     },
                     KeyCode::Enter => { 
                         user_inp.on_enter(&mut app)

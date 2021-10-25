@@ -25,7 +25,8 @@ pub struct App {
     // msg contains error messages and keybinds
     pub err_msg: String,
     // Requesting for user input
-    pub requesting_input: bool,
+    pub is_searching: bool,
+    pub searching_for: String,
 }
 
 impl App {
@@ -41,7 +42,7 @@ impl App {
     /// and restore the context to default conditions
     pub fn end_input(&mut self) {
         self.displayed_files = self.wd.files().to_vec();
-        self.input_mode = InputMode::Normal;
+        self.to_normal_mode();
         self.new_ctx();
     }
 
@@ -66,22 +67,35 @@ impl App {
     /// the working directory
     pub fn update_displayed_files(&mut self, needle: Option<&str>) {
         if let Some(needle) = needle {
+            self.searching_for = needle.to_string();
             self.displayed_files = self.wd.files()
                 .iter()
-                .filter(|f| f.name.starts_with(needle))
+                .filter(|f| f.name.starts_with(&self.searching_for))
                 .cloned()
                 .collect();
+        // } else {
+        } else if !self.searching_for.is_empty() {
+             self.displayed_files = self.wd.files()
+                .iter()
+                .filter(|f| f.name.starts_with(&self.searching_for))
+                .cloned()
+                .collect();
+
         } else {
-            self.displayed_files = self.wd.files().to_vec();
+            self.reset_displayed_files();
+            // self.displayed_files.iter_mut().for_each(|f| f.update()); 
         }
-        
-        self.new_list_state();
+    }
+
+    pub fn reset_displayed_files(&mut self) {
+        self.displayed_files = self.wd.files().to_vec();
     }
     
     /// Basic opereations for opening a new context
     pub fn new_ctx(&mut self) {
         self.new_list_state();
-        self.requesting_input = false;
+        self.is_searching = false;
+        self.searching_for.clear();
     }
 
     // Shifts the context to the next directory 
@@ -95,8 +109,8 @@ impl App {
     /// Shifts the context back one directory
     pub fn wd_back(&mut self) {
         if self.wd.back() {
-            self.new_ctx();
             self.displayed_files = self.wd.files().to_vec();
+            self.new_ctx();
         }
     }
     
@@ -156,7 +170,8 @@ impl App {
         let mut flist_state = ListState::default();
         flist_state.select(Some(0));
         let err_msg = String::with_capacity(15);
-        let requesting_input = false;
+        let is_searching = false;
+        let searching_for = String::new();
 
         Self {
             input_mode,
@@ -165,7 +180,8 @@ impl App {
             displayed_files,
             flist_state,
             err_msg,
-            requesting_input,
+            is_searching,
+            searching_for,
         }
     }
 }

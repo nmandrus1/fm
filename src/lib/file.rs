@@ -6,6 +6,7 @@ use tui::style::Color;
 use std::convert::From;
 use std::os::unix::prelude::{MetadataExt, OsStrExt};
 use std::path::{Path, PathBuf};
+use std::fs;
 
 #[derive(Debug, Clone)]
 pub struct File {
@@ -49,6 +50,10 @@ impl File {
     /// updates the size field of the file
     pub fn update_size(&mut self) {
         self.size = std::fs::metadata(self.path()).unwrap().size();
+    }
+
+    pub fn update(&mut self) {
+        self.name = String::from_utf8(self.path().file_name().unwrap().as_bytes().to_vec()).unwrap()
     }
 }
 

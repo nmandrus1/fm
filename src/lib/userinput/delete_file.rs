@@ -5,8 +5,8 @@ use std::fs;
 use std::io::ErrorKind;
 
 pub struct FileDelete <'a> {
-    pub msg: &'a str,
-    pub input: String,
+    msg: &'a str,
+    input: String,
 }
 
 impl<'a> Default for FileDelete<'a> {
@@ -71,8 +71,28 @@ impl <'a> Input for FileDelete<'a> {
                 return
             }
         }
+        
+        if app.wd.files().is_empty() {
+            app.wd_back();
+            return
+        }
+
         app.wd.update();
-        app.end_input();
+        app.displayed_files.remove(app.flist_state.selected().unwrap());
+        if let Some(selected_idx) = app.flist_state.selected() {
+
+            app.new_list_state();
+
+            // Determine which file should be highlighted after deletion
+            if selected_idx == 0 {
+            } else if selected_idx == app.displayed_files.len() {
+                app.flist_state.select(Some(selected_idx - 1));
+            } else {
+                app.flist_state.select(Some(selected_idx))
+            }
+
+            app.to_normal_mode();
+        }
     }
 
     fn msg(&self) -> &'a str {

@@ -1,8 +1,8 @@
 use super::{Input, App};
 
 pub struct Search <'a> {
-    pub msg: &'a str,
-    pub input: String,
+    msg: &'a str,
+    input: String,
 }
 
 impl<'a> Default for Search<'a> {
@@ -34,13 +34,15 @@ impl<'a> Input for Search<'a> {
 
     fn add_to_input(&mut self, ch: char, app: &mut App) {
         self.input.push(ch);
-        app.update_displayed_files(Some(self.input()))
+        app.update_displayed_files(Some(self.input()));
+        app.new_list_state();
     }
 
     fn del(&mut self, app: &mut App) {
         if !self.input.is_empty() {
             self.input.pop();
-            app.update_displayed_files(Some(self.input()))
+            app.update_displayed_files(Some(self.input()));
+            app.new_list_state();
         } else {
             app.to_normal_mode()
         }

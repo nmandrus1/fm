@@ -34,7 +34,13 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut Box<dyn 
             let extra_chunks = nmode_extra_chunks(&chunks);
             f.render_widget(gen_cwd(app.wd.cwd()), chunks[0]);
             f.render_widget(gen_input(""), extra_chunks[4]);
-            f.render_stateful_widget(list, middle_chunks[0], &mut app.flist_state);
+
+            // Render an empty screen for an empty directory
+            if app.wd.files().is_empty() {
+                f.render_widget(invalid_prev("Empty Directory"), chunks[1])
+            } else {
+                f.render_stateful_widget(list, middle_chunks[0], &mut app.flist_state);
+            }
             
             let (ex1, ex2, ex3) = gen_extras(
                     &selected_file, app.flist_state.selected().unwrap(), 
@@ -80,7 +86,13 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut Box<dyn 
 fn gen_file_preview<'a>(file: &File) -> anyhow::Result<Paragraph<'a>, String> {
     use std::io::ErrorKind;
     match std::fs::read_to_string(&file.path()) {
-        Ok(s) => Ok(Paragraph::new(Text::from(s)).block(prev_block())),
+        Ok(s) => { 
+            if s.is_empty() {
+                Err("Empty File".to_string())
+            } else {
+                Ok(Paragraph::new(Text::from(s)).block(prev_block()))
+            }
+        },
         Err(e) => match e.kind() {
             ErrorKind::Interrupted => Err("Read Interrupted".to_string()),
             ErrorKind::InvalidData => Err("Invalid UTF-8".to_string()),
@@ -209,12 +221,27 @@ fn list_from_files<'a>(files: &[File]) -> Vec<ListItem<'a>> {
 fn render_empty<B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut Box<dyn Input>) {
     let (chunks, _) = gen_chunks(f);
     f.render_widget(gen_cwd(app.wd.cwd()), chunks[0]);
-    let err_msg = format!("Pattern not found: {}", &user_inp.output()[1..]);
-    let err = invalid_prev(&err_msg)
-        .block(Block::default().borders(Borders::LEFT | Borders::RIGHT));
-    f.render_widget(err, chunks[1]);
-    f.render_widget(gen_input(&user_inp.output()), chunks[2]);
-    f.set_cursor(chunks[2].x + user_inp.output().len() as u16, chunks[2].y + 1);
+
+    match app.input_mode {
+        InputMode::Normal => {
+            f.render_widget(gen_err("Empty Directory"), chunks[1]);
+            f.render_widget(gen_input(""), chunks[2])
+        },
+        InputMode::Editing => {
+            let msg = if app.is_searching {
+                format!("Pattern not found: {}", user_inp.input())
+            } else { String::new() };
+
+            f.render_widget(gen_input(&user_inp.output()), chunks[2]);
+            f.set_cursor(chunks[2].x + user_inp.output().len() as u16, chunks[2].y + 1);
+            f.render_widget(gen_err(&msg), chunks[1]);
+        },
+        InputMode::Error => {
+            f.render_widget(gen_err("Empty Directory"), chunks[1]);
+            f.render_widget(gen_err(&app.err_msg), chunks[2])
+        },
+        _ => {},
+    }
 }
 
 fn gen_chunks<B: Backend>(f: &mut Frame<B>) -> (Vec<Rect>, Vec<Rect>) {

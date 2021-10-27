@@ -15,19 +15,19 @@ impl<'a> Default for FileRename<'a> {
 }
 
 impl<'a> Input for FileRename<'a> {
-
     fn on_enter(&mut self, app: &mut App) {
+        if app.selected_file().is_none() {
+            return app.err("No File selected");
+        }
         match fs::rename(app.selected_file().unwrap().path(), PathBuf::from(&self.input())){
             Ok(_) => { 
                 app.wd.update();
-                // let idx = app.flist_state.selected().unwrap();
-                // app.displayed_files[idx].name = self.input().to_owned();
                 app.update_displayed_files(None);
                 app.to_normal_mode();
             },
             Err(e) => match e.kind() {
-                ErrorKind::AlreadyExists => { app.err("Already Exists"); return}
-                _ => { app.err(e.to_string().as_str()); return}
+                ErrorKind::AlreadyExists => { return app.err("Already Exists"); }
+                _ => { return app.err(e.to_string().as_str()); }
             }
         }
     }

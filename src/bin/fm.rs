@@ -107,10 +107,9 @@ fn render_loop(
                     // Going forward
                     KeyCode::Char('l') => {
                         // Checks to see if the directory is valid
-                        let iter = std::fs::read_dir(app.selected_file().unwrap().path());
-                        if app.selected_file().unwrap().ftype == FileType::Directory
-                        && iter.is_ok() 
-                        && iter.unwrap().next().is_some() {
+                        if app.selected_file().is_some()
+                        && app.selected_file().unwrap().ftype == FileType::Directory
+                        && std::fs::read_dir(app.selected_file().unwrap().path()).is_ok() {
                             app.wd_forward();
                             user_inp.clear();
                         }                    

@@ -42,7 +42,12 @@ impl <'a> Input for FileCreate<'a> {
         if !new_file.exists() {
             if self.creating_dir{
                 match fs::create_dir(new_file) {
-                    Ok(_) => {},
+                    Ok(_) => {
+                        app.wd.update();
+                        app.update_displayed_files(None);
+                        app.new_list_state();
+                        app.to_normal_mode();
+                    },
                     Err(e) => match e.kind() {
                         ErrorKind::PermissionDenied => app.err("Permission Denied"),
                         _ => app.err("Unexpected Error"),
@@ -50,20 +55,19 @@ impl <'a> Input for FileCreate<'a> {
                 }
             } else {
                 match fs::File::create(new_file) {
-                    Ok(_) => {},
+                    Ok(_) => {
+                        app.wd.update();
+                        app.update_displayed_files(None);
+                        app.new_list_state();
+                        app.to_normal_mode(); 
+                    },
                     Err(e) => match e.kind() {
                         ErrorKind::PermissionDenied => app.err("Permission Denied"),
                         _ => app.err("Unexpected Error"),
+                        }
                     }
                 }
-            }
-
-            app.wd.update();
-            app.update_displayed_files(None);
-            app.to_normal_mode();
-        } else {
-            app.err("Already Exists");
-        }
+            } else { app.err("Already Exists") }
 
     }
    

@@ -14,7 +14,7 @@ pub struct WorkingDir {
 impl WorkingDir {
     /// Creates a new instance of WorkingDir. This can fail because it calls
     /// std::env::current_dir()
-    pub fn new(dir: Option<&str>) -> anyhow::Result<Self> {
+    pub fn new(dir: Option<&Path>) -> anyhow::Result<Self> {
         let cwd = match dir {
             Some(dir) => PathBuf::from(dir),
             None => std::env::current_dir()?,
@@ -48,8 +48,10 @@ impl WorkingDir {
 
     /// Function to set the cwd field in WorkingDir
     /// This is used to keep track of where you are in the file system
-    pub fn set_cwd(&mut self, new_cwd: &str) -> anyhow::Result<WorkingDir> {
-         WorkingDir::new(Some(new_cwd))
+    pub fn set_cwd(&mut self, new_cwd: &Path) -> anyhow::Result<()> {
+        self.cwd = new_cwd.to_path_buf();
+        self.update()?;
+        Ok(())
     }
 
     /// Returns the current working directory
@@ -88,9 +90,10 @@ impl WorkingDir {
 
     /// Gets the files from the current working directory
     /// and updates the files to be held internally by App
-    pub fn update(&mut self) {
-        self.files = Self::get_files(&self.cwd).unwrap();
+    pub fn update(&mut self) -> anyhow::Result<()> {
+        self.files = Self::get_files(&self.cwd)?;
         self.len = self.files.len();
+        Ok(())
     }
 }
 

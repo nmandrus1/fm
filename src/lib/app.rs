@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::workingdir::WorkingDir;
 use super::file::File;
 
@@ -46,6 +48,10 @@ impl App {
         self.new_ctx();
     }
 
+    pub fn clear_selection(&mut self) {
+        self.displayed_files.iter_mut().for_each(|f| f.is_selected = false);
+    }
+
     /// Helper function to set the input mode to InputMode::Normal
     pub fn to_normal_mode(&mut self) {
         self.input_mode = InputMode::Normal
@@ -84,6 +90,33 @@ impl App {
         } else {
             self.reset_displayed_files();
             // self.displayed_files.iter_mut().for_each(|f| f.update()); 
+        }
+    }
+
+    pub fn select_file(&mut self, needle: &PathBuf) {
+        // Create owned data that is mutable
+        let mut new_wd = needle.to_owned();
+        new_wd.pop();
+
+        // Check to see if we should switch directories or not
+        // if we should then set the cwd to the directory we 
+        // need to switch to
+        if !self.wd.cwd().eq(&new_wd) {
+            match self.wd.set_cwd(&new_wd) {
+                Ok(()) => {},
+                Err(e) => { self.err(&e.to_string()); }
+            }
+        }
+
+        let selection = self.displayed_files
+            .iter()
+            .enumerate()
+            .find(|f| f.1.path.eq(needle));
+
+        if let Some(selection) = selection {
+            self.flist_state.select(Some(selection.0))
+        } else {
+            self.flist_state.select(Some(0))
         }
     }
 

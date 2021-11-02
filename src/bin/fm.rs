@@ -1,7 +1,10 @@
 // std Imports
 use std::sync::mpsc;
 
-use fm::userinput::{Input, Search, FileDelete, FileCreate, FileRename};
+use fm::userinput::{
+    Input, Search, FileDelete,
+    FileCreate, FileRename, FileCopy
+};
 // Lib Imports
 use fm::filetype::FileType;
 use fm::{app::{App, InputMode}, ui};
@@ -146,20 +149,22 @@ fn render_loop(
                         app.flist_state.select(Some(num_files - 1))
                     },
                     KeyCode::Char('d') => { 
-                        app.input_mode = InputMode::Editing;
+                        app.to_editing_mode();
                         user_inp = Box::new(FileDelete::default());
                     },
                     KeyCode::Char('a')=> {
-                        app.input_mode = InputMode::Editing;
+                        app.to_editing_mode();
                         user_inp = Box::new(FileCreate::default())
                     }
                     KeyCode::Char('A') => {
-                        app.input_mode = InputMode::Editing;
+                        app.to_editing_mode();
                         user_inp = Box::new(FileCreate::default().dir())
                     }
                     KeyCode::Char('r') => {
                         app.to_editing_mode();
-                        user_inp = Box::new(FileRename::default())
+                        if let Some(file) = app.selected_file() {
+                            user_inp = Box::new(FileRename::default().file(&file))
+                        }
                     }
                     KeyCode::Char('p') => {
                         println!("name: {} path: {:?}", app.selected_file().unwrap().name, app.selected_file().unwrap().path())
@@ -174,8 +179,26 @@ fn render_loop(
                         }
                     },
 
+                    KeyCode::Char('c') => {
+                        app.to_editing_mode();
+                        if let Some(file) = app.selected_file() {
+                            user_inp = Box::new(FileCopy::default().file(&file));
+                        }
+                    }
+
+                    KeyCode::Char('v') => {
+                        if let Some(file) = app.selected_file_mut() {
+                            file.is_selected = !file.is_selected;
+                        }
+                    },
+
                     KeyCode::Esc => {
-                        app.end_input();
+                        if app.is_searching {
+                            app.end_input()
+                        } else {
+                            app.clear_selection();
+                            app.to_normal_mode()
+                        }
                     }
                     _ => {}
                 },

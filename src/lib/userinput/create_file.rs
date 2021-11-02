@@ -39,28 +39,20 @@ impl <'a> Input for FileCreate<'a> {
         let mut new_file = app.wd.cwd().to_owned();
         new_file.push(PathBuf::from(self.input()));
 
+        // Check to make sure the file doesnt already exist
         if !new_file.exists() {
-            if self.creating_dir{
-                match fs::create_dir(new_file) {
-                    Ok(_) => {
-                        app.wd.update();
-                        app.update_displayed_files(None);
-                        app.new_list_state();
-                        app.to_normal_mode();
-                    },
+            // Creating directory or file
+            if self.creating_dir {
+                match fs::create_dir(&new_file) {
+                    Ok(_) => {},
                     Err(e) => match e.kind() {
                         ErrorKind::PermissionDenied => app.err("Permission Denied"),
-                        _ => app.err("Unexpected Error"),
+                        _ => app.err(e.to_string().as_str()),
                     } 
                 }
             } else {
-                match fs::File::create(new_file) {
-                    Ok(_) => {
-                        app.wd.update();
-                        app.update_displayed_files(None);
-                        app.new_list_state();
-                        app.to_normal_mode(); 
-                    },
+                match fs::File::create(&new_file) {
+                    Ok(_) => {},
                     Err(e) => match e.kind() {
                         ErrorKind::PermissionDenied => app.err("Permission Denied"),
                         _ => app.err("Unexpected Error"),
@@ -68,6 +60,11 @@ impl <'a> Input for FileCreate<'a> {
                     }
                 }
             } else { app.err("Already Exists") }
+
+        app.wd.update();
+        app.reset_displayed_files();
+        app.select_file(&new_file);
+        app.to_normal_mode();
 
     }
    

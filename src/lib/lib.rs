@@ -8,6 +8,7 @@ pub mod userinput;
 
 pub use app::App;
 pub use app::InputMode;
+pub use file::File;
 
 #[cfg(test)]
 mod tests {

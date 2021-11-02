@@ -1,49 +1,45 @@
-use super::{Input, App, File};
+use super::{App, Input, File};
+
 use std::fs;
 use std::path::PathBuf;
 use std::io::ErrorKind;
 
-pub struct FileRename<'a> {
-    msg: &'a str,
-    input: String,
+pub struct FileCopy<'a> {
+  msg: &'a str,
+  input: String,
 }
 
-impl<'a> FileRename<'a> {
+impl<'a> FileCopy<'a> {
     pub fn file(mut self, f: &File) -> Self {
         self.input.push_str(f.path().to_str().unwrap());
         self
     }
 }
 
-impl<'a> Default for FileRename<'a> {
+impl<'a> Default for FileCopy<'a> {
     fn default() -> Self {
-        Self{ msg: " Rename file: ", input: String::with_capacity(30) }
+        Self{ msg: " Copy file to: ", input: String::with_capacity(30) }
     }
 }
-
-impl<'a> Input for FileRename<'a> {
+ 
+impl<'a> Input for FileCopy<'a> {
     fn on_enter(&mut self, app: &mut App) {
         if app.selected_file().is_none() {
             return app.err("No File selected");
         }
 
-        let mut new_file = PathBuf::from(self.input());
+        let new_file = PathBuf::from(self.input());
 
         if new_file.eq(app.selected_file().unwrap().path()) {
             return app.to_normal_mode()
         }
 
-        let file = new_file.clone();
 
-        match fs::rename(app.selected_file().unwrap().path(), &new_file){
+        match fs::copy(app.selected_file().unwrap().path(), &new_file){
             Ok(_) => { 
-                //TODO Working on getting fm to 
-                // automatically move to the new file location
-                new_file.pop();
-                app.wd.set_cwd(&new_file)
-                    .unwrap_or_else(|e| app.err(&e.to_string()));
-                app.update_displayed_files(None);
-                app.select_file(&file);
+                app.wd.update();
+                app.reset_displayed_files();
+                app.select_file(&new_file);
                 app.to_normal_mode();
             },
             Err(e) => match e.kind() {

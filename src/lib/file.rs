@@ -6,7 +6,6 @@ use tui::style::Color;
 use std::convert::From;
 use std::os::unix::prelude::{MetadataExt, OsStrExt};
 use std::path::{Path, PathBuf};
-use std::fs;
 
 #[derive(Debug, Clone)]
 pub struct File {
@@ -15,11 +14,16 @@ pub struct File {
     pub perms: Permissions,
     pub path: PathBuf,
     pub size: u64,
+    pub is_selected: bool,
 }
 
 impl File {
     /// Gets a color based on the FileType of the File
     pub fn color(&self) -> Color {
+        if self.is_selected {
+            return Color::Rgb(213, 0, 255)
+        }
+
         match self.ftype {
             FileType::Directory => Color::LightBlue,
             FileType::File => Color::White,
@@ -57,11 +61,40 @@ impl File {
     }
 }
 
+impl From<std::path::PathBuf> for File {
+    fn from(path: std::path::PathBuf) -> Self {
+        let mut name = String::from_utf8(path.file_name().unwrap().as_bytes().to_vec()).unwrap();
+        let mdata = path.metadata();
+        let (perms, size, ftype) = match mdata {
+            Ok(mdata) => {
+                (Permissions::from(mdata.mode()), mdata.size(), Some(mdata.file_type()))
+            }
+            Err(_) => (Permissions::from(u32::MAX), 0, None)
+        };
+
+        let ftype = match ftype {
+            Some(f) => {
+                if f.is_dir() {
+                    FileType::Directory
+                } else if f.is_symlink() {
+                    FileType::Symlink
+                } else {
+                    FileType::File
+                }
+            },
+            
+            None => FileType::File
+        };
+
+        let is_selected = false;
+
+        Self { name, ftype, perms, path, size, is_selected }
+    }
+}
+
 impl From<std::fs::DirEntry> for File {
     fn from(entry: std::fs::DirEntry) -> File {
-        // Clippy suggestion
-        // let name = String::from_utf8_lossy(entry.file_name().as_bytes().into()).to_string();
-        let name = String::from_utf8(entry.file_name().as_bytes().to_vec()).unwrap();
+        let mut name = String::from_utf8(entry.file_name().as_bytes().to_vec()).unwrap();
         let path = entry.path();
         let (perms, size) = match entry.metadata() {
             Ok(mdata) => {
@@ -85,7 +118,9 @@ impl From<std::fs::DirEntry> for File {
             Err(..) => FileType::File
         };
 
-        Self { name, ftype, perms, path, size }
+        let is_selected = false;
+
+        Self { name, ftype, perms, path, size, is_selected }
     }
 }
 

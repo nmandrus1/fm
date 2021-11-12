@@ -31,7 +31,7 @@ impl WorkingDir {
     pub fn forward(&mut self, path: &Path) {
         if self.len > 0 {
             self.cwd.push(path);
-            self.update();
+            self.update().unwrap();
         }
     }
 
@@ -39,7 +39,7 @@ impl WorkingDir {
     /// Returns true if it can go back and false otherwise
     pub fn back(&mut self) -> bool {
         if self.cwd.pop() {
-            self.update();
+            self.update().unwrap();
             true
         } else {
             false

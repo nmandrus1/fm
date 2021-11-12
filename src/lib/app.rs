@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use super::workingdir::WorkingDir;
 use super::file::File;
@@ -93,21 +93,19 @@ impl App {
         }
     }
 
-    pub fn select_file(&mut self, needle: &PathBuf) {
-        // Create owned data that is mutable
-        let mut new_wd = needle.to_owned();
-        new_wd.pop();
-
-        // Check to see if we should switch directories or not
-        // if we should then set the cwd to the directory we 
-        // need to switch to
-        if !self.wd.cwd().eq(&new_wd) {
-            match self.wd.set_cwd(&new_wd) {
-                Ok(()) => {},
-                Err(e) => { self.err(&e.to_string()); }
+    pub fn select_file(&mut self, needle: &Path) {
+        // get the parent directory
+        if let Some(parent) = needle.parent() {
+            // Check to see if we should switch directories or not
+            if self.wd.cwd().ne(parent) {
+                match self.wd.set_cwd(parent) {
+                    Ok(_) => self.update_displayed_files(None),
+                    Err(e) => self.err(&e.to_string()),
+                }
             }
         }
 
+        // Option containing the index of our file
         let selection = self.displayed_files
             .iter()
             .enumerate()
@@ -216,5 +214,11 @@ impl App {
             is_searching,
             searching_for,
         }
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -27,27 +27,19 @@ impl<'a> Input for FileRename<'a> {
             return app.err("No File selected");
         }
 
-        let mut new_file = PathBuf::from(self.input());
+        let new_file = PathBuf::from(self.input());
 
         if new_file.eq(app.selected_file().unwrap().path()) {
             return app.to_normal_mode()
         }
 
-        let file = new_file.clone();
-
         match fs::rename(app.selected_file().unwrap().path(), &new_file){
             Ok(_) => { 
-                //TODO Working on getting fm to 
-                // automatically move to the new file location
-                new_file.pop();
-                app.wd.set_cwd(&new_file)
-                    .unwrap_or_else(|e| app.err(&e.to_string()));
-                app.update_displayed_files(None);
-                app.select_file(&file);
+                app.select_file(&new_file);
                 app.to_normal_mode();
             },
             Err(e) => match e.kind() {
-                ErrorKind::AlreadyExists => { return app.err("Already Exists"); }
+                ErrorKind::AlreadyExists => app.err("Already Exists"),
                 _ => { return app.err(e.to_string().as_str()); }
             }
         }

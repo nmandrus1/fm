@@ -63,7 +63,7 @@ impl File {
 
 impl From<std::path::PathBuf> for File {
     fn from(path: std::path::PathBuf) -> Self {
-        let mut name = String::from_utf8(path.file_name().unwrap().as_bytes().to_vec()).unwrap();
+        let name = String::from_utf8(path.file_name().unwrap().as_bytes().to_vec()).unwrap();
         let mdata = path.metadata();
         let (perms, size, ftype) = match mdata {
             Ok(mdata) => {
@@ -94,7 +94,7 @@ impl From<std::path::PathBuf> for File {
 
 impl From<std::fs::DirEntry> for File {
     fn from(entry: std::fs::DirEntry) -> File {
-        let mut name = String::from_utf8(entry.file_name().as_bytes().to_vec()).unwrap();
+        let name = String::from_utf8(entry.file_name().as_bytes().to_vec()).unwrap();
         let path = entry.path();
         let (perms, size) = match entry.metadata() {
             Ok(mdata) => {

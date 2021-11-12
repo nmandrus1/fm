@@ -61,7 +61,9 @@ impl <'a> Input for FileCreate<'a> {
                 }
             } else { app.err("Already Exists") }
 
-        app.wd.update();
+        // update the working directory and displayed files 
+        // then select the new file
+        app.wd.update().unwrap();
         app.reset_displayed_files();
         app.select_file(&new_file);
         app.to_normal_mode();

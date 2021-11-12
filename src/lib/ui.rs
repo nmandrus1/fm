@@ -84,20 +84,41 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App, user_inp: &mut Box<dyn 
 }
 
 fn gen_file_preview<'a>(file: &File) -> anyhow::Result<Paragraph<'a>, String> {
-    use std::io::ErrorKind;
+    use std::io::{Read, ErrorKind};
+    use std::fs;
+
+    // check to see if the file needs to be cut off
+    // for performance reasons 
+    if file.size > 1000 {
+        // create buffer
+        let mut buf = [0; 1000];
+        let mut f = fs::File::open(file.path()).unwrap();
+        // check to make sure everything read into the buffer properly
+        match f.read_exact(&mut buf) {
+            Ok(_) => {},
+            Err(e) => match e.kind() {
+                // if it didnt return early with the error
+                ErrorKind::Interrupted => return Err("Read Interrupted".to_string()),
+                _ => return Err(e.to_string())
+            }
+        }
+        // return result of trying to create a string from buf
+        return match String::from_utf8(buf.to_vec()) {
+            Ok(s) => Ok(Paragraph::new(Text::from(s)).block(prev_block())),
+            Err(_) => Err("Invalid UTF-8".to_string())
+        }
+    }
+
+    // if the file is less than 500 bytes just read_to_string
     match std::fs::read_to_string(&file.path()) {
-        Ok(s) => { 
+        Ok(s) => {
             if s.is_empty() {
                 Err("Empty File".to_string())
             } else {
                 Ok(Paragraph::new(Text::from(s)).block(prev_block()))
             }
         },
-        Err(e) => match e.kind() {
-            ErrorKind::Interrupted => Err("Read Interrupted".to_string()),
-            ErrorKind::InvalidData => Err("Invalid UTF-8".to_string()),
-            _ => Err(e.to_string()),
-        }
+        Err(_) => Err("Invalid UTF-8".to_string()),
     }
 }
 

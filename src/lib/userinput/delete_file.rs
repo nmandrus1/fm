@@ -34,7 +34,9 @@ impl <'a> Input for FileDelete<'a> {
     }
 
     fn on_enter(&mut self, app: &mut App) {
+        // get the currently selected file
         let selected_file = app.selected_file().expect("Error getting selected file");
+        // check to see if the user actually wants to delete the file
         match self.input.to_lowercase().as_str() {
             "y" => {
                 match selected_file.ftype {
@@ -42,12 +44,10 @@ impl <'a> Input for FileDelete<'a> {
                         Ok(_) => {},
                         Err(e) => match e.kind() {
                             ErrorKind::PermissionDenied => { 
-                                app.err("Permission Denied"); 
-                                return 
+                                app.err("Permission Denied")
                             },
                             _ => { 
-                                app.err("Unexpected Error"); 
-                                return 
+                                app.err("Unexpected Error")
                             },
                         }
                     },
@@ -55,30 +55,25 @@ impl <'a> Input for FileDelete<'a> {
                         Ok(_) => {},
                         Err(e) => match e.kind() {
                             ErrorKind::PermissionDenied => { 
-                                app.err("Permission Denied"); 
-                                return
+                                app.err("Permission Denied")
                             },
-                            _ => { 
-                                app.err("Unexpected Error"); 
-                                return 
-                            },
+                            _ => app.err("Unexpected Error"),
                         } 
                     },
                 };
             },
             _ => {
-                app.to_normal_mode();
-                return
+                app.to_normal_mode()
             }
         }
         
-        if app.wd.files().is_empty() {
-            app.wd_back();
-            return
+        app.wd.update().unwrap();
+        app.displayed_files.remove(app.flist_state.selected().unwrap());
+
+        if app.displayed_files.is_empty() {
+            app.reset_displayed_files()
         }
 
-        app.wd.update();
-        app.displayed_files.remove(app.flist_state.selected().unwrap());
         if let Some(selected_idx) = app.flist_state.selected() {
 
             app.new_list_state();

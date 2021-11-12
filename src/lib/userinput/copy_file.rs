@@ -34,17 +34,14 @@ impl<'a> Input for FileCopy<'a> {
             return app.to_normal_mode()
         }
 
-
         match fs::copy(app.selected_file().unwrap().path(), &new_file){
             Ok(_) => { 
-                app.wd.update();
-                app.reset_displayed_files();
                 app.select_file(&new_file);
                 app.to_normal_mode();
             },
             Err(e) => match e.kind() {
-                ErrorKind::AlreadyExists => { return app.err("Already Exists"); }
-                _ => { return app.err(e.to_string().as_str()); }
+                ErrorKind::AlreadyExists => app.err("Already Exists"),
+                _ => app.err(e.to_string().as_str())
             }
         }
     }

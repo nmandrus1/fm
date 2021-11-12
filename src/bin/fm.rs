@@ -163,7 +163,7 @@ fn render_loop(
                     KeyCode::Char('r') => {
                         app.to_editing_mode();
                         if let Some(file) = app.selected_file() {
-                            user_inp = Box::new(FileRename::default().file(&file))
+                            user_inp = Box::new(FileRename::default().file(file))
                         }
                     }
                     KeyCode::Char('p') => {
@@ -182,7 +182,7 @@ fn render_loop(
                     KeyCode::Char('c') => {
                         app.to_editing_mode();
                         if let Some(file) = app.selected_file() {
-                            user_inp = Box::new(FileCopy::default().file(&file));
+                            user_inp = Box::new(FileCopy::default().file(file));
                         }
                     }
 
